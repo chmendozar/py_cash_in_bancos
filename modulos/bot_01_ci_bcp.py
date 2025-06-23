@@ -73,7 +73,21 @@ def login(driver):
     
     # Paso 1: Acceder a la página
     driver.get("https://www.tlcbcp.com/")
+    time.sleep(5)
+    # Paso 1.5: Cerrar modal si existe
+    def close_modal():
+        try:
+            modal_button = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.XPATH, "//*[@id='bcp-modal-0']/div/bcp-modal-footer/div/bcp-button/button/bcp-character/span"))
+            )
+            driver.execute_script("arguments[0].click();", modal_button)
+            time.sleep(1)
+        except:
+            # Si no existe el modal, continuar normalmente
+            pass
     
+    retry_action(close_modal, "Error al cerrar modal")
+    time.sleep(5)
     # Paso 2: Ingresar número de tarjeta
     def enter_card():
         campo_tarjeta = WebDriverWait(driver, 10).until(

@@ -245,9 +245,9 @@ def bot_run(cfg, mensaje):
                 break  # Exit loop if success
 
             except Exception as e:
-                print(f"❌ Error in flow on attempt {attempt}: {e}")
+                print(f"Error in flow on attempt {attempt}: {e}")
                 if attempt == MAX_ATTEMPTS_FLOW:
-                    print("❌ Flow failed after maximum attempts.")
+                    print("Flow failed after maximum attempts.")
                     raise
                 else:
                     print("Retrying flow steps...")

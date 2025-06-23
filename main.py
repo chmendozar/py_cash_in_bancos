@@ -60,31 +60,25 @@ def main():
 
         logger.info(f"Configuración cargada exitosamente. Secciones disponibles: {', '.join(cfg.keys())}")
 
-        notificaion = WebhookNotifier(cfg["webhooks"]["webhook_url"])
-
         # Ejecución de los bots
+        mensaje = ""  # Initialize mensaje variable
         for bot_name, bot_function in [
             ("Bot 01 - BCP", Bot_01_CI_BCP),
             ("Bot 02 - BBVA Soles", Bot_02_CI_BBVA_SOLES),
             ("Bot 03 - BBVA Dólares", Bot_03_CI_BBVA_SOLES)
         ]:
             logger.info(f"==================== INICIANDO {bot_name} ====================")
-            resultado, mensaje = bot_function(cfg)
-            
-            if resultado:
-                logger.info(f"{bot_name} completado exitosamente: {mensaje}")
-            else:
-                logger.error(f"{bot_name} falló: {mensaje}")
-                return
+            bot_function(cfg, mensaje)
+            logger.info(f"{bot_name} completado exitosamente")
         
-        # Verificar si hay excepciones de negocio o sistema
-        if vg.business_exception:
-            logger.info("Enviando Notificación por Error de Negocio...")
-            return
+            # Verificar si hay excepciones de negocio o sistema
+            if vg.business_exception:
+                logger.info("Enviando Notificación por Error de Negocio...")
+                return
 
-        if vg.system_exception:
-            logger.info("Enviando Notificación por Error de Sistema...")
-            return
+            if vg.system_exception:
+                logger.info("Enviando Notificación por Error de Sistema...")
+                return
 
     except Exception as e:
         logger.error(f"Error en main: {e}")
