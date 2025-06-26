@@ -303,13 +303,18 @@ def generar_reporte(driver):
 
     retry_action(click_aplicar, "Error al hacer clic en Aplicar")
 
-    check_all = WebDriverWait(driver, 60).until(
-            EC.presence_of_element_located((By.XPATH, "//input[@class='bcp-ffw-custom-control-input' and @name='bcp-cb-64']"))
+    time.sleep(2)
+
+    def click_checkbox():
+        checkbox = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//input[@class='bcp-ffw-custom-control-input' and @type='checkbox' and @name='bcp-cb-64']"))
         )
-    driver.execute_script("arguments[0].click();", check_all)
-    return check_all
-    
-    retry_action(select_all, "Error al seleccionar todos")
+        driver.execute_script("arguments[0].click();", checkbox)
+        return checkbox
+
+    retry_action(click_checkbox, "Error al hacer clic en checkbox")
+
+    time.sleep(2)
 
     def click_seleccionar_todas():
         btn_seleccionar_todas = WebDriverWait(driver, 10).until(
@@ -322,6 +327,7 @@ def generar_reporte(driver):
 
     time.sleep(2)
 
+
     def click_exportar():
         boton_exportar = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, "//button[contains(@class, 'bcp-ffw-btn')]//*[text()= ' Exportar ']"))
@@ -330,27 +336,15 @@ def generar_reporte(driver):
         return boton_exportar
 
     retry_action(click_exportar, "Error al hacer clic en Exportar")
-   
-    # Esperar menú exportación
-    def wait_export_menu():
-        return WebDriverWait(driver, 5).until(
-            EC.visibility_of_element_located((By.CLASS_NAME, "dropdown-export-item"))
-        )
-    retry_action(wait_export_menu, "Error esperando menú de exportación")
 
-    button_txt = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.XPATH, "//div[@class='dropdown-export-item'][text()= 'TXT/CSV']"))
-    )
-    driver.execute_script("arguments[0].click();", button_txt)
+    def click_txt():
+        button_txt = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//div[@class='dropdown-export-item'][text()= 'TXT/CSV']"))
+        )
+        driver.execute_script("arguments[0].click();", button_txt)
+        return button_txt
 
     retry_action(click_txt, "Error al hacer clic en TXT/CSV")
-
-    # Esperar selector separador
-    def wait_separator():
-        return WebDriverWait(driver, 5).until(
-            EC.visibility_of_element_located((By.XPATH, "//div[contains(@name, 'bcp-select-2')]"))
-        )
-    retry_action(wait_separator, "Error esperando selector de separador")
 
     def click_select():
         button_select = WebDriverWait(driver, 10).until(
@@ -361,13 +355,6 @@ def generar_reporte(driver):
 
     retry_action(click_select, "Error al hacer clic en selector")
 
-    # Esperar opciones
-    def wait_options():
-        return WebDriverWait(driver, 5).until(
-            EC.visibility_of_element_located((By.XPATH, "//*[contains(@class, 'bcp-paragraph')]"))
-        )
-    retry_action(wait_options, "Error esperando opciones")
-
     def click_comma():
         button_comma = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, "//*[contains(@class, 'bcp-paragraph')]//p[text()=' Coma(,) ']"))
@@ -377,12 +364,6 @@ def generar_reporte(driver):
 
     retry_action(click_comma, "Error al seleccionar coma")
 
-    # Esperar cierre selector
-    def wait_selector_close():
-        return WebDriverWait(driver, 5).until(
-            EC.invisibility_of_element_located((By.XPATH, "//*[contains(@class, 'bcp-paragraph')]"))
-        )
-    retry_action(wait_selector_close, "Error esperando cierre de selector")
 
 def descarga_fichero(driver):
     """
