@@ -13,6 +13,7 @@ from datetime import datetime
 from anticaptchaofficial.imagecaptcha import imagecaptcha
 import re
 from selenium_stealth import stealth
+from selenium.webdriver.common.keys import Keys
 
 
 def create_stealth_driver():
@@ -73,7 +74,7 @@ def login(driver):
     
     # Paso 1: Acceder a la página
     driver.get("https://www.tlcbcp.com/")
-    time.sleep(5)
+    time.sleep(10)
     # Paso 1.5: Cerrar modal si existe
     def close_modal():
         try:
@@ -87,11 +88,11 @@ def login(driver):
             pass
     
     retry_action(close_modal, "Error al cerrar modal")
-    time.sleep(5)
+    time.sleep(10)
     # Paso 2: Ingresar número de tarjeta
     def enter_card():
-        campo_tarjeta = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//input[contains(@class, 'form-control')]"))
+        campo_tarjeta = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.XPATH, "//input[contains(@name, 'ciam-input-card')]"))
         )
         campo_tarjeta.clear()
         campo_tarjeta.send_keys("0006000003532706")
@@ -146,11 +147,11 @@ def login(driver):
         img_data = img_src.encode('utf-8')
     
     # Guardar imagen del captcha
-    with open('./logs/captcha/captcha.jpg', 'wb') as f:
+    with open('./cliente/input/captcha.jpg', 'wb') as f:
         f.write(img_data)
 
     # Paso 6: Resolver captcha usando API
-    ruta_imagen = "./logs/captcha/captcha.jpg"
+    ruta_imagen = "./cliente/input/captcha.jpg"
     api_key = "d1a79dd90565f566d2f6b48b4fad5260"
     
     def solve_captcha():
@@ -219,14 +220,14 @@ def generar_reporte(driver):
     # Esperar a que la página cargue completamente
     def wait_for_page():
         return WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//div[@class='datepicker-input-element']"))
+            EC.presence_of_element_located((By.XPATH, "//input[@name='inputDateFrom']"))
         )
     retry_action(wait_for_page, "Error esperando carga de página")
 
     #Agregar fecha desde
     def get_date_since_click():
         date_since_clic = WebDriverWait(driver, 60).until(
-            EC.visibility_of_element_located((By.XPATH, "(//div[@class='datepicker-input-element'])[1]//*[@name='calendar-r']"))
+            EC.visibility_of_element_located((By.XPATH, "(//input[@name='inputDateFrom'])"))
         )
         date_since_clic.click()
         return date_since_clic
@@ -238,25 +239,13 @@ def generar_reporte(driver):
             EC.visibility_of_element_located((By.XPATH, "//input[@name='inputDateFrom']"))
         )
         date_since.send_keys(actual_date)
+        date_since.send_keys(Keys.TAB)
         return date_since
 
     retry_action(get_date_since, "Error al ingresar fecha desde")
     
-    # Esperar a que se actualice el campo
-    def wait_date_update():
-        return WebDriverWait(driver, 5).until(
-            EC.text_to_be_present_in_element_value((By.XPATH, "//input[@name='inputDateFrom']"), actual_date)
-        )
-    retry_action(wait_date_update, "Error esperando actualización de fecha desde")
-    
     retry_action(get_date_since_click, "Error al hacer segundo clic en fecha desde")
     
-    # Esperar a que se cierre el calendario
-    def wait_calendar_close():
-        return WebDriverWait(driver, 5).until(
-            EC.invisibility_of_element_located((By.CLASS_NAME, "datepicker-popup"))
-        )
-    retry_action(wait_calendar_close, "Error esperando cierre de calendario")
     
     #Agregar fecha hasta
     def get_date_to():
@@ -267,29 +256,16 @@ def generar_reporte(driver):
         return date_to
     
     retry_action(get_date_to, "Error al hacer clic en fecha hasta")
-    
-    # Esperar a que aparezca el calendario
-    def wait_calendar_open():
-        return WebDriverWait(driver, 5).until(
-            EC.visibility_of_element_located((By.CLASS_NAME, "datepicker-popup"))
-        )
-    retry_action(wait_calendar_open, "Error esperando apertura de calendario")
-    
+
     def enter_date_to():
         date_to = WebDriverWait(driver, 60).until(
             EC.visibility_of_element_located((By.XPATH, "//input[@name='inputDateTo']"))
         )
         date_to.send_keys(actual_date)
+        date_to.send_keys(Keys.TAB)
         return date_to
 
     retry_action(enter_date_to, "Error al ingresar fecha hasta")
-
-    # Esperar a que se actualice el valor
-    def wait_date_to_update():
-        return WebDriverWait(driver, 5).until(
-            EC.text_to_be_present_in_element_value((By.XPATH, "//input[@name='inputDateTo']"), actual_date)
-        )
-    retry_action(wait_date_to_update, "Error esperando actualización de fecha hasta")
 
     # Hacer clic en el dropdown
     def click_dropdown():
