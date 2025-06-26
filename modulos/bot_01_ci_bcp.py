@@ -277,13 +277,6 @@ def generar_reporte(driver):
     
     retry_action(click_dropdown, "Error al hacer clic en dropdown")
     
-    # Esperar a que el dropdown se despliegue
-    def wait_dropdown():
-        return WebDriverWait(driver, 5).until(
-            EC.visibility_of_element_located((By.CLASS_NAME, "select-item"))
-        )
-    retry_action(wait_dropdown, "Error esperando despliegue de dropdown")
-    
     # Seleccionar opción "Ingresos"
     def select_ingresos():
         opcion_ingresos = WebDriverWait(driver, 2).until(
@@ -310,13 +303,6 @@ def generar_reporte(driver):
 
     retry_action(click_aplicar, "Error al hacer clic en Aplicar")
 
-    # Esperar actualización tabla
-    def wait_table():
-        return WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "bcp-ffw-custom-control-input"))
-        )
-    retry_action(wait_table, "Error esperando actualización de tabla")
-
     check_all = WebDriverWait(driver, 60).until(
             EC.presence_of_element_located((By.XPATH, "//input[@class='bcp-ffw-custom-control-input' and @name='bcp-cb-64']"))
         )
@@ -324,13 +310,17 @@ def generar_reporte(driver):
     return check_all
     
     retry_action(select_all, "Error al seleccionar todos")
-    
-    # Esperar selección
-    def wait_selection():
-        return WebDriverWait(driver, 5).until(
-            EC.element_to_be_selected((By.XPATH, "//input[@class='bcp-ffw-custom-control-input' and @name='bcp-cb-64']"))
+
+    def click_seleccionar_todas():
+        btn_seleccionar_todas = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//a[@class='bcp-ffw-btn btn-text']//span[text()='Seleccionar todas']"))
         )
-    retry_action(wait_selection, "Error esperando selección de elementos")
+        driver.execute_script("arguments[0].click();", btn_seleccionar_todas)
+        return btn_seleccionar_todas
+
+    retry_action(click_seleccionar_todas, "Error al hacer clic en Seleccionar todas")
+
+    time.sleep(2)
 
     def click_exportar():
         boton_exportar = WebDriverWait(driver, 10).until(
@@ -452,7 +442,30 @@ def bcp_cash_in_descarga_txt():
     Función principal que ejecuta todo el proceso
     """
     driver = create_stealth_driver()
-    login(driver)
+    def retry_login(max_attempts=2):
+        """
+        Función que reintenta el login hasta 3 veces, actualizando la página en cada intento
+        """
+        for attempt in range(max_attempts):
+            try:
+                print(f"Intento de login {attempt + 1}/{max_attempts}")
+                login(driver)
+                print("Login exitoso")
+                return True
+            except Exception as e:
+                print(f"Error en intento {attempt + 1}: {e}")
+                if attempt < max_attempts - 1:  # Si no es el último intento
+                    print("Actualizando página y reintentando...")
+                    driver.refresh()
+                    time.sleep(5)  # Esperar a que la página cargue
+                else:
+                    print("Se agotaron todos los intentos de login")
+                    raise e
+        
+        return False
+    
+    # Ejecutar login con reintentos
+    retry_login()
     generar_reporte(driver)
     descarga_fichero(driver)
     driver.quit()
