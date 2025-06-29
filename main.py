@@ -10,6 +10,7 @@ from modulos.bot_00_configuracion import bot_run as Bot_00_Configuracion
 from modulos.bot_01_ci_bcp import bot_run as Bot_01_CI_BCP
 from modulos.bot_02_bbva_ci_soles import bot_run as Bot_02_CI_BBVA_SOLES
 from modulos.bot_03_bbva_ci_dolares import bot_run as Bot_03_CI_BBVA_SOLES
+from utilidades.notificaiones_whook import WebhookNotifier
 
 logger = logging.getLogger("Main - Orquestador")
 
@@ -60,29 +61,28 @@ def main():
 
         logger.info(f"Configuración cargada exitosamente. Secciones disponibles: {', '.join(cfg.keys())}")
 
+        # Inicializar notificador webhook
+        webhook = WebhookNotifier(cfg['webhook']['webhook_rpa_url'])
+        webhook.send_notification("Iniciando proceso de orquestación de bots")
+
         # Ejecución de los bots
         mensaje = ""  # Initialize mensaje variable
         for bot_name, bot_function in [
-            ("Bot 02 - BBVA Soles", Bot_02_CI_BBVA_SOLES),
             ("Bot 01 - BCP", Bot_01_CI_BCP),
+            ("Bot 02 - BBVA Soles", Bot_02_CI_BBVA_SOLES),
             ("Bot 03 - BBVA Dólares", Bot_03_CI_BBVA_SOLES)
         ]:
             logger.info(f"==================== INICIANDO {bot_name} ====================")
+            webhook.send_notification(f"Iniciando {bot_name}")
             bot_function(cfg, mensaje)
             logger.info(f"{bot_name} completado exitosamente")
-        
-            # Verificar si hay excepciones de negocio o sistema
-            if vg.business_exception:
-                logger.info("Enviando Notificación por Error de Negocio...")
-                return
-
-            if vg.system_exception:
-                logger.info("Enviando Notificación por Error de Sistema...")
-                return
+            webhook.send_notification(f"{bot_name} completado exitosamente")
 
     except Exception as e:
-        logger.error(f"Error en main: {e}")
+        error_msg = f"Error en main: {str(e)}"
+        logger.error(error_msg)
         logger.error(traceback.format_exc())
+        webhook.send_notification(error_msg)
 
     finally:
         # Calcular tiempo total de ejecución
@@ -92,6 +92,7 @@ def main():
         logger.info(f"Fin de orquestación - {fin.strftime('%Y-%m-%d %H:%M:%S')}")
         logger.info(f"Tiempo total de ejecución: {tiempo_total}")
         logger.info("Fin del proceso ...")
+        webhook.send_notification(f"Proceso finalizado. Tiempo total: {tiempo_total}")
 
 if __name__ == "__main__":
     main()

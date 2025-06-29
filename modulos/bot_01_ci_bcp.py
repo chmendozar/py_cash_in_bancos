@@ -8,6 +8,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import base64
 import os
+import platform
 import time
 from datetime import datetime
 from anticaptchaofficial.imagecaptcha import imagecaptcha
@@ -454,8 +455,11 @@ def bot_run(cfg, mensaje):
     try:
         bcp_cash_in_descarga_txt()
     except Exception as e:
-        os.system("taskkill /im chrome.exe /f")
-        print(f"Error: {e}")
+        if platform.system() == 'Windows':
+            os.system("taskkill /im chrome.exe /f")
+        else:
+            os.system("pkill -f chrome")
+        raise Exception(f"Error en bot BCP: {e}") from e
 
     finally:
         print("Navegador cerrado")    
