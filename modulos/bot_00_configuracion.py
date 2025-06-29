@@ -17,8 +17,21 @@ def bot_run():
             Path(cfg["rutas"]["ruta_log"]).mkdir(parents=True)
 
         # Se crea la carpeta de input si no existe
-        if not Path(cfg["rutas"]["ruta_input"]).exists():
-            Path(cfg["rutas"]["ruta_input"]).mkdir(parents=True)
+        ruta_input = Path(cfg["rutas"]["ruta_input"])
+        if not ruta_input.exists():
+            ruta_input.mkdir(parents=True)
+        else:
+            # Limpiar el directorio ruta_input
+            for archivo in ruta_input.iterdir():
+                try:
+                    if archivo.is_file():
+                        archivo.unlink()
+                    elif archivo.is_dir():
+                        # Si hay subdirectorios, los elimina recursivamente
+                        import shutil
+                        shutil.rmtree(archivo)
+                except Exception as e:
+                    logger.warning(f"No se pudo eliminar {archivo}: {e}")
 
         # Se crea la carpeta de output si no existe
         if not Path(cfg["rutas"]["ruta_output"]).exists():

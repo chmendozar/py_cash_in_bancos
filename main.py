@@ -74,9 +74,12 @@ def main():
         ]:
             logger.info(f"==================== INICIANDO {bot_name} ====================")
             webhook.send_notification(f"Iniciando {bot_name}")
-            bot_function(cfg, mensaje)
+            resultado, mensaje = bot_function(cfg, mensaje)
             logger.info(f"{bot_name} completado exitosamente")
             webhook.send_notification(f"{bot_name} completado exitosamente")
+            if not resultado:
+                logger.error(f"{bot_name} completado con errores: {mensaje}")
+                webhook.send_notification(f"{bot_name} completado con errores: {mensaje}")
 
     except Exception as e:
         error_msg = f"Error en main: {str(e)}"
