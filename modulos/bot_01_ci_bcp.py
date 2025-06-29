@@ -51,8 +51,7 @@ def create_stealth_driver():
         webgl_vendor="Intel Inc.",
         renderer="Intel Iris OpenGL Engine",
         fix_hairline=True,
-    )
-    
+    )    
     return driver
 
 def retry_action(action, error_msg):
@@ -70,8 +69,7 @@ def retry_action(action, error_msg):
 def login(driver):
     """
     Función que realiza el proceso de login en la página del BCP
-    """
-    
+    """    
     # Paso 1: Acceder a la página
     driver.get("https://www.tlcbcp.com/")
     time.sleep(10)
@@ -187,7 +185,6 @@ def login(driver):
 
     # Paso 8: Seleccionar cuenta
     number_account = '194-2232464-0-40'
-
     def click_continue_btn():
         btn_continue = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//ciam-form-session-card//form//bcp-button/button"))
@@ -198,7 +195,7 @@ def login(driver):
     retry_action(click_continue_btn, "Error al hacer clic en continuar")
 
     def select_account():
-        card_account = WebDriverWait(driver, 30).until(
+        card_account = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, f"//ntlc-account-card//*[text()='{number_account}']"))
         )
         driver.execute_script("arguments[0].click();", card_account)
@@ -213,17 +210,14 @@ def login(driver):
 def generar_reporte(driver):
     # Obtener fecha actual
     actual_date = datetime.now()
-
     # Formatear la fecha según lo necesites
     actual_date = actual_date.strftime("%d%m%Y") # Formato DD/MM/YYYY
-
     # Esperar a que la página cargue completamente
     def wait_for_page():
         return WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, "//input[@name='inputDateFrom']"))
         )
     retry_action(wait_for_page, "Error esperando carga de página")
-
     #Agregar fecha desde
     def get_date_since_click():
         date_since_clic = WebDriverWait(driver, 60).until(
@@ -233,7 +227,6 @@ def generar_reporte(driver):
         return date_since_clic
     
     retry_action(get_date_since_click, "Error al hacer clic en fecha desde")
-
     def get_date_since():
         date_since = WebDriverWait(driver, 60).until(
             EC.visibility_of_element_located((By.XPATH, "//input[@name='inputDateFrom']"))
@@ -241,12 +234,9 @@ def generar_reporte(driver):
         date_since.send_keys(actual_date)
         date_since.send_keys(Keys.TAB)
         return date_since
-
-    retry_action(get_date_since, "Error al ingresar fecha desde")
-    
+    retry_action(get_date_since, "Error al ingresar fecha desde")    
     retry_action(get_date_since_click, "Error al hacer segundo clic en fecha desde")
-    
-    
+
     #Agregar fecha hasta
     def get_date_to():
         date_to = WebDriverWait(driver, 60).until(
@@ -266,6 +256,7 @@ def generar_reporte(driver):
         return date_to
 
     retry_action(enter_date_to, "Error al ingresar fecha hasta")
+    time.sleep(2)
 
     # Hacer clic en el dropdown
     def click_dropdown():
@@ -276,6 +267,7 @@ def generar_reporte(driver):
         return dropdown
     
     retry_action(click_dropdown, "Error al hacer clic en dropdown")
+    time.sleep(2)
     
     # Seleccionar opción "Ingresos"
     def select_ingresos():
@@ -286,13 +278,7 @@ def generar_reporte(driver):
         return opcion_ingresos
 
     retry_action(select_ingresos, "Error al seleccionar opción Ingresos")
-
-    # Esperar cierre dropdown
-    def wait_dropdown_close():
-        return WebDriverWait(driver, 5).until(
-            EC.invisibility_of_element_located((By.CLASS_NAME, "select-item"))
-        )
-    retry_action(wait_dropdown_close, "Error esperando cierre de dropdown")
+    time.sleep(2)
 
     def click_aplicar():
         btn_aplicar = WebDriverWait(driver, 60).until(
@@ -317,13 +303,18 @@ def generar_reporte(driver):
     time.sleep(2)
 
     def click_seleccionar_todas():
-        btn_seleccionar_todas = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//a[@class='bcp-ffw-btn btn-text']//span[text()='Seleccionar todas']"))
-        )
-        driver.execute_script("arguments[0].click();", btn_seleccionar_todas)
-        return btn_seleccionar_todas
-
-    retry_action(click_seleccionar_todas, "Error al hacer clic en Seleccionar todas")
+        try:
+            elementos = driver.find_elements(By.XPATH, "//a[@class='bcp-ffw-btn btn-text']//span[text()='Seleccionar todas']")
+            
+            if elementos:
+                driver.execute_script("arguments[0].click();", elementos[0])
+                return elementos[0]
+            else:
+                # No existe, simplemente continúa
+                print("No se encontró el botón 'Seleccionar todas', se continúa sin error.")
+        
+        except Exception as e:
+            print(f"Error al intentar buscar o hacer clic en 'Seleccionar todas': {e}")
 
     time.sleep(2)
 
@@ -364,18 +355,18 @@ def generar_reporte(driver):
 
     retry_action(click_comma, "Error al seleccionar coma")
 
-
 def descarga_fichero(driver):
     """
     Función que gestiona la descarga del archivo
     """
     # Paso 1: Seleccionar opciones de usuario
-    button_user = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.XPATH, "//input[@type='checkbox' and @value='userId']"))
-    )
-    driver.execute_script("arguments[0].click();", button_user)
+    # button_user = WebDriverWait(driver, 10).until(
+    #     EC.presence_of_element_located((By.XPATH, "//input[@type='checkbox' and @value='userId']"))
+    # )
+    # driver.execute_script("arguments[0].click();", button_user)
 
     # Paso 2: Iniciar exportación
+    time.sleep(2)
     button_export = WebDriverWait(driver, 10).until(
         EC.element_to_be_clickable((By.XPATH, "//button//*[text()='Exportar']"))
     )
@@ -387,15 +378,19 @@ def descarga_fichero(driver):
     )
 
     n_code = re.search(r'solicitud N° (\d+)', code.text)
+    if n_code is None:
+        raise Exception("No se pudo encontrar el código de solicitud")
     n_code = n_code.group(1)
     print(n_code)
     n_code = n_code.zfill(8)
 
     # Paso 4: Navegar a archivos solicitados
     button_files = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.XPATH, "//bcp-button[@class='bcp-button-host-4-22-0 hydrated']//*[text()=' Ir a archivos solicitados ']"))
+        EC.element_to_be_clickable((By.XPATH, "//bcp-character//*[text()=' Ir a archivos solicitados ']"))
     )
     driver.execute_script("arguments[0].click();", button_files)
+
+    time.sleep(4)
 
     # Paso 5: Localizar y descargar archivo
     row_element = WebDriverWait(driver, 10).until(
@@ -404,10 +399,14 @@ def descarga_fichero(driver):
 
     index = row_element.get_attribute("index")
 
+    time.sleep(2)
+
     button_dwld = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.XPATH, f"//bcp-table-row-9nbaaa[@index='{index}']//span[contains(@class, 'bcp-ffw-sr-only') and text()='Descargar .txt']"))
+        EC.presence_of_element_located((By.XPATH, f"//bcp-table-row-9nbaaa[@index='{index}']//span[contains(@class, 'bcp-ffw-sr-only') and text()='Descargar .txt']"))
     )
     driver.execute_script("arguments[0].click();", button_dwld)
+
+    time.sleep(2)
 
     button_txt = WebDriverWait(driver, 10).until(
         EC.element_to_be_clickable((By.XPATH, "//button//span[text()=' Descargar .txt ']"))
@@ -461,4 +460,5 @@ def bot_run(cfg, mensaje):
 
     finally:
         # Cerrar navegador
+        driver.quit()
         print("Navegador cerrado")    
