@@ -7,6 +7,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import base64
+from pathlib import Path
+import requests
 import json
 import os
 import platform
@@ -17,13 +19,19 @@ import re
 from selenium_stealth import stealth
 from selenium.webdriver.common.keys import Keys
 
-def create_stealth_driver():
+def create_stealth_driver(cfg):
     """
     Función que crea y configura un driver de Chrome con características anti-detección
     """
     # Inicializar opciones del navegador
+    ruta_descarga = cfg['rutas']['ruta_input']
     options = webdriver.ChromeOptions()
-    options.add_argument("user-data-dir=/app/bcp/perfil/chrome")
+    
+    # Crear directorio de perfil personalizado para evitar problemas de permisos
+    profile_dir = os.path.expanduser("~/chrome_profile_bcp")
+    os.makedirs(profile_dir, exist_ok=True)
+    options.add_argument(f"--user-data-dir={profile_dir}")
+    
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option('useAutomationExtension', False)
     options.add_argument("--disable-blink-features=AutomationControlled")
@@ -37,12 +45,21 @@ def create_stealth_driver():
         "profile.default_content_settings.popups": 0,
         "profile.managed_default_content_settings.images": 1,
         "profile.default_content_setting_values.cookies": 1,
-        "profile.block_third_party_cookies": False
+        "profile.block_third_party_cookies": False,
+        "download.default_directory": os.path.abspath(ruta_descarga)
     }
     options.add_experimental_option("prefs", prefs)
 
     # Creación del driver con las opciones configuradas
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    try:
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    except Exception as e:
+        # Si hay un error relacionado con el driver en caché, intentar sin forzar descarga
+        print("Problema con el chromedriver. Intentando con chromedriver del sistema...")
+        try:
+            driver = webdriver.Chrome(service=Service('chromedriver'), options=options)
+        except:
+            raise Exception(f"No se pudo crear el driver: {e}")
 
     # Configuración de stealth
     stealth(driver,
@@ -54,6 +71,7 @@ def create_stealth_driver():
         fix_hairline=True,
     )    
     return driver
+
 
 def retry_action(action, error_msg):
     max_retries = 4
@@ -418,11 +436,11 @@ def descarga_fichero(driver):
     time.sleep(2)
 
 
-def bcp_cash_in_descarga_txt():
+def bcp_cash_in_descarga_txt(cfg):
     """
     Función principal que ejecuta todo el proceso
     """
-    driver = create_stealth_driver()
+    driver = create_stealth_driver(cfg)
     def retry_login(max_attempts=2):
         """
         Función que reintenta el login hasta 3 veces, actualizando la página en cada intento
@@ -451,10 +469,62 @@ def bcp_cash_in_descarga_txt():
     descarga_fichero(driver)
     driver.quit()
 
+def bcp_cargar_gescom(cfg):
+    """
+    Función principal que ejecuta todo el proceso
+    """
+    try:
+        
+        ruta_archivo = Path(cfg['rutas']['ruta_input']) / "040_ultimos_movimientos.txt"
+        # Leer el archivo y convertirlo a base64
+        ruta_archivo = Path(ruta_archivo)
+
+        if not ruta_archivo.exists():
+            raise FileNotFoundError(f"No se encontró el archivo: {ruta_archivo}")
+
+        # Obtener el contenido del archivo en base64 (sin decode)
+        with open(ruta_archivo, "rb") as archivo:
+            contenido_b64 = base64.b64encode(archivo.read()).decode()
+
+        # Ahora contenido_b64 contiene el archivo en base64
+
+        # Construir el payload según el formato solicitado
+        payload = {
+            "format": "Bcp_MovimientosDelDía",
+            "fileName": f"043_ultimos_movimientos_{datetime.now().strftime('%Y-%m-%dT%H%M%S.%f')[:-3]}.txt",
+            "base64File": contenido_b64.decode()
+        }
+
+        # Obtener la URL del endpoint desde la configuración
+        api_url = cfg['api']['api_gescom_transacciones']
+
+        # Realizar la petición POST al endpoint
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(api_url, json==json.dumps(payload), headers=headers)
+        response = requests.post(api_url, json=payload)
+
+        # Manejar la respuesta
+        if response.status_code == 200:
+            print("Archivo enviado exitosamente a GESCOM.")
+            return True
+        else:
+            print(f"Error al enviar archivo a GESCOM: {response.status_code} - {response.text}")
+            return False, f"Error al enviar archivo a GESCOM: {response.status_code} - {response.text}"
+    except Exception as e:
+        print(f"Excepción al cargar archivo a GESCOM: {e}")
+        return False, f"Excepción al cargar archivo a GESCOM: {e}"
+    
 # Ejecución principal con manejo de errores
 def bot_run(cfg, mensaje):
     try:
-        bcp_cash_in_descarga_txt()
+        resultado = False
+        bcp_cash_in_descarga_txt(cfg)
+        resultado = True
+        mensaje = "Descarga de archivo exitosa"
+        if resultado:
+            bcp_cargar_gescom(cfg)
+            mensaje = "Carga de archivo exitosa"
+            resultado = True
     except Exception as e:
         if platform.system() == 'Windows':
             os.system("taskkill /im chrome.exe /f")
@@ -463,4 +533,5 @@ def bot_run(cfg, mensaje):
         raise Exception(f"Error en bot BCP: {e}") from e
 
     finally:
-        print("Navegador cerrado")    
+        print("Navegador cerrado")
+        return resultado, mensaje
