@@ -200,7 +200,7 @@ def download_txt(driver):
     time.sleep(1)
     start_date_input.send_keys(Keys.ENTER)
     time.sleep(1)
-    end_date_input.send_keys(Keys.TAB)
+    start_date_input.send_keys(Keys.TAB)
     time.sleep(5)
 
     end_date_input = driver.find_element(By.XPATH, "//input[@name='fecfin']")
@@ -212,10 +212,13 @@ def download_txt(driver):
     time.sleep(5)
 
     # Step 7: click on 'Consultar' button
-    consult_button = WebDriverWait(driver, 30).until(
-        EC.element_to_be_clickable((By.XPATH, "//input[@value='Consultar']"))
+    consult_button = WebDriverWait(driver, 10).until(
+    EC.presence_of_element_located((By.XPATH, "//input[@value='Consultar']"))
     )
-    consult_button.click()
+
+    ActionChains(driver).move_to_element(consult_button).perform()
+
+    driver.execute_script("arguments[0].click();", consult_button)
 
     # Step 8: download TXT
     time.sleep(5)

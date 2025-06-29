@@ -9,6 +9,7 @@ import time
 from datetime import datetime
 from selenium.webdriver.common.keys import Keys
 from selenium_stealth import stealth
+from selenium.webdriver.common.action_chains import ActionChains
 
 #Función para imprimir la información de un elemento de html
 def print_element_info(elemento):
@@ -107,6 +108,7 @@ def login(driver, max_attempts=3):
                 time.sleep(5)  # Wait before retrying
 
 def select_charges(driver):
+    time.sleep(5)
     app_template_host = driver.find_element(By.CSS_SELECTOR, "bbva-btge-app-template")
     app_template_shadow_root = driver.execute_script("return arguments[0].shadowRoot", app_template_host)
 
@@ -179,6 +181,7 @@ def download_txt(driver):
     driver.switch_to.frame(kyop_iframe_element)
 
     print("✓ Inside iframe#kyop-central-load-area")
+    time.sleep(5)
 
     # Step 5: click on the desired account link (LIGO- LA MAGICA SOLES)
     soles_account_link = driver.find_element(By.XPATH, "//a[contains(@href, 'LIGO- LA MAGICA SOLES')]")
@@ -195,11 +198,13 @@ def download_txt(driver):
     start_date_input.click()
     time.sleep(1)
     start_date_input.send_keys(Keys.ENTER)
+    time.sleep(1)
+    start_date_input.send_keys(Keys.TAB)
     time.sleep(5)
 
     end_date_input = driver.find_element(By.XPATH, "//input[@name='fecfin']")
-    end_date_input.click()
-    time.sleep(1)
+    #end_date_input.click()
+    #time.sleep(1)
     end_date_input.send_keys(Keys.ENTER)
     time.sleep(1)
     end_date_input.send_keys(Keys.TAB)
@@ -207,12 +212,15 @@ def download_txt(driver):
 
     # Step 7: click on 'Consultar' button
     consult_button = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.XPATH, "//input[@value='Consultar']"))
+    EC.presence_of_element_located((By.XPATH, "//input[@value='Consultar']"))
     )
-    consult_button.click()
+
+    ActionChains(driver).move_to_element(consult_button).perform()
+
+    driver.execute_script("arguments[0].click();", consult_button)
 
     # Step 8: download TXT
-    time.sleep(2)
+    time.sleep(3)
     WebDriverWait(driver, 60).until(
         EC.presence_of_element_located((By.XPATH, "//a[@title='Descargar Txt']"))
     )
