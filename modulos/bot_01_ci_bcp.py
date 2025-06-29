@@ -15,6 +15,7 @@ import re
 from selenium_stealth import stealth
 from selenium.webdriver.common.keys import Keys
 
+driver = webdriver.Chrome()
 
 def create_stealth_driver():
     """
@@ -448,17 +449,16 @@ def bcp_cash_in_descarga_txt():
     retry_login()
     generar_reporte(driver)
     descarga_fichero(driver)
-    driver.quit()
 
 # Ejecución principal con manejo de errores
 def bot_run(cfg, mensaje):
     try:
         bcp_cash_in_descarga_txt()
-
     except Exception as e:
         print(f"Error: {e}")
 
     finally:
         # Cerrar navegador
-        driver.quit()
+        if driver:
+            driver.quit()
         print("Navegador cerrado")    
