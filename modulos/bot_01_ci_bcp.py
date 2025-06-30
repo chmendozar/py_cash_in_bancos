@@ -22,60 +22,43 @@ from selenium.webdriver.common.keys import Keys
 
 logger = logging.getLogger("Bot 01 - BCP Cash In")
 
-def create_stealth_driver(cfg):
+def create_stealth_webdriver(cfg):
     """
-    Función que crea y configura un driver de Chrome con características anti-detección
+    Crea un driver de Chrome configurado para descargar archivos en la ruta indicada en cfg['rutas']['ruta_input']
     """
-    logger.info("Creando driver de Chrome con stealth")
-    ruta_descarga = cfg['rutas']['ruta_input']
+    download_path = str(Path(cfg['rutas']['ruta_input']).absolute())
+
     options = webdriver.ChromeOptions()
-    
-    profile_dir = os.path.expanduser("~/chrome_profile_bcp")
-    os.makedirs(profile_dir, exist_ok=True)
-    options.add_argument(f"--user-data-dir={profile_dir}")
-    
+    options.add_argument("user-data-dir=/app/bcp/perfil/chrome")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option('useAutomationExtension', False)
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36')
 
-    # Agregar modo headless
-    options.add_argument("--headless=new")
-    options.add_argument("--window-size=1920,1080")
-
     prefs = {
+        "download.default_directory": download_path,  # <<< Aquí se fuerza la carpeta de descarga
         "credentials_enable_service": False,
         "profile.password_manager_enabled": False,
         "profile.default_content_setting_values.notifications": 2,
         "profile.default_content_settings.popups": 0,
         "profile.managed_default_content_settings.images": 1,
         "profile.default_content_setting_values.cookies": 1,
-        "profile.block_third_party_cookies": False,
-        "download.default_directory": os.path.abspath(ruta_descarga)
+        "profile.block_third_party_cookies": False
     }
     options.add_experimental_option("prefs", prefs)
 
-    try:
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    except Exception as e:
-        logger.warning("Problema con el chromedriver. Intentando con chromedriver del sistema...")
-        try:
-            driver = webdriver.Chrome(service=Service('chromedriver'), options=options)
-        except:
-            logger.error(f"No se pudo crear el driver: {e}")
-            raise Exception(f"No se pudo crear el driver: {e}")
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
     stealth(driver,
         languages=["es-ES", "es"],
-        vendor="Google Inc.", 
+        vendor="Google Inc.",
         platform="Win32",
         webgl_vendor="Intel Inc.",
         renderer="Intel Iris OpenGL Engine",
         fix_hairline=True,
-    )    
-    logger.info("Driver de Chrome creado exitosamente")
-    return driver
+    )
 
+    return driver
 
 def retry_action(action, error_msg):
     max_retries = 4
@@ -429,7 +412,7 @@ def bcp_cash_in_descarga_txt(cfg):
     driver = None
     try:
         logger.info("Iniciando proceso completo de descarga de movimientos BCP")
-        driver = create_stealth_driver(cfg)
+        driver = create_stealth_webdriver(cfg)
         def retry_login(max_attempts=2):
             for attempt in range(max_attempts):
                 try:

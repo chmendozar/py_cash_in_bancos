@@ -1,6 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common import action_chains
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
@@ -26,11 +27,12 @@ def print_element_info(elemento):
     for child in children:
         print(child.tag_name, "-", child.get_attribute("class"))
 
-def create_stealth_webdriver():
+def create_stealth_webdriver(cfg):
     """
-    Función que crea y configura un driver de Chrome con características anti-detección
+    Crea un driver de Chrome configurado para descargar archivos en la ruta indicada en cfg['rutas']['ruta_input']
     """
-    # Inicializar opciones del navegador
+    download_path = str(Path(cfg['rutas']['ruta_input']).absolute())
+
     options = webdriver.ChromeOptions()
     options.add_argument("user-data-dir=/app/bcp/perfil/chrome")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
@@ -38,8 +40,8 @@ def create_stealth_webdriver():
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36')
 
-    # Configuración de preferencias adicionales
     prefs = {
+        "download.default_directory": download_path,  # <<< Aquí se fuerza la carpeta de descarga
         "credentials_enable_service": False,
         "profile.password_manager_enabled": False,
         "profile.default_content_setting_values.notifications": 2,
@@ -50,13 +52,11 @@ def create_stealth_webdriver():
     }
     options.add_experimental_option("prefs", prefs)
 
-    # Creación del driver con las opciones configuradas
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
-    # Configuración de stealth
     stealth(driver,
         languages=["es-ES", "es"],
-        vendor="Google Inc.", 
+        vendor="Google Inc.",
         platform="Win32",
         webgl_vendor="Intel Inc.",
         renderer="Intel Iris OpenGL Engine",
@@ -65,6 +65,7 @@ def create_stealth_webdriver():
 
     return driver
 
+
 def bbva_ci_soles_descarga_txt(cfg):
     """
     Función principal que ejecuta todo el proceso de descarga de movimientos BBVA SOLES
@@ -72,7 +73,7 @@ def bbva_ci_soles_descarga_txt(cfg):
     driver = None
     try:
         logger.info("Iniciando proceso completo de descarga de movimientos BBVA SOLES")
-        driver = create_stealth_webdriver()
+        driver = create_stealth_webdriver(cfg)
 
         def retry_login(max_attempts=2):
             for attempt in range(max_attempts):
@@ -97,8 +98,9 @@ def bbva_ci_soles_descarga_txt(cfg):
         select_paid_collection(driver)
         download_txt(driver)
         logger.info("Proceso de descarga de movimientos BBVA SOLES finalizado correctamente")
-        
+        return True
     except Exception as e:
+        return False
         logger.error(f"Ocurrió un error en bbva_ci_soles_descarga_txt: {e}")
     finally:
         if driver:
@@ -230,17 +232,15 @@ def download_txt(driver):
     driver.switch_to.frame(kyop_iframe_element)
 
     print("✓ Inside iframe#kyop-central-load-area")
-    time.sleep(5)
+    time.sleep(10)
 
     # Step 5: click on the desired account link (LIGO- LA MAGICA SOLES)
     soles_account_link = driver.find_element(By.XPATH, "//a[contains(@href, 'LIGO- LA MAGICA SOLES')]")
-    soles_account_link.click()
+    ActionChains(driver).move_to_element(soles_account_link).click().perform()
     time.sleep(5)
-    WebDriverWait(driver, 60).until(
+    start_date_input = WebDriverWait(driver, 60).until(
         EC.presence_of_element_located((By.XPATH, "//input[@name='fecini']"))
     )
-
-    start_date_input = driver.find_element(By.XPATH, "//input[@name='fecini']")
     ActionChains(driver).move_to_element(start_date_input).click().perform()
     time.sleep(1)
     start_date_input.send_keys(Keys.ENTER)
@@ -308,7 +308,7 @@ def bbva_ci_soles_cargar_gescom(cfg):
         ruta_archivo = archivos[0]
 
         with open(ruta_archivo, "rb") as archivo:
-            contenido_b64 = base64.b64encode(archivo.read()).decode()
+            contenido_b64 = base64.b64encode(archivo.read()).decode(encoding="utf-8")
 
         payload = {
             "format": "Bbva_HistóricoDeMovimientos",
@@ -338,9 +338,7 @@ def bot_run(cfg, mensaje):
         resultado = False
         logger.info("Iniciando ejecución principal del bot BBVA SOLES")
         
-        bbva_ci_soles_descarga_txt(cfg)
-        resultado = True
-        mensaje = "Descarga de archivo exitosa"
+        resultado = bbva_ci_soles_descarga_txt(cfg)
 
         if resultado:
             bbva_ci_soles_cargar_gescom(cfg)
