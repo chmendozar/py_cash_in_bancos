@@ -10,6 +10,14 @@ from datetime import datetime
 from selenium.webdriver.common.keys import Keys
 from selenium_stealth import stealth
 from selenium.webdriver.common.action_chains import ActionChains
+import logging
+import base64
+from pathlib import Path
+import requests
+import os
+import platform
+
+logger = logging.getLogger("Bot 02 - BBVA CI Soles")
 
 #Función para imprimir la información de un elemento de html
 def print_element_info(elemento):
@@ -57,55 +65,96 @@ def create_stealth_webdriver():
 
     return driver
 
-def login(driver, max_attempts=3):
-    for attempt in range(1, max_attempts + 1):
-        try:
-            print(f"Login attempt {attempt}/{max_attempts}...")
+def bbva_ci_soles_descarga_txt(cfg):
+    """
+    Función principal que ejecuta todo el proceso de descarga de movimientos BBVA SOLES
+    """
+    driver = None
+    try:
+        logger.info("Iniciando proceso completo de descarga de movimientos BBVA SOLES")
+        driver = create_stealth_webdriver()
 
-            # Clean cookies and storage, reload page
-            driver.delete_all_cookies()
-            driver.get("https://www.bbvanetcash.pe")
-            driver.execute_script("window.localStorage.clear();")
-            driver.execute_script("window.sessionStorage.clear();")
-            time.sleep(5)  # Wait initial load
+        def retry_login(max_attempts=2):
+            for attempt in range(max_attempts):
+                try:
+                    logger.info(f"Intento de login {attempt + 1}/{max_attempts}")
+                    login(driver)
+                    logger.info("Login exitoso")
+                    return True
+                except Exception as e:
+                    logger.warning(f"Error en intento {attempt + 1}: {e}")
+                    if attempt < max_attempts - 1:
+                        logger.info("Actualizando página y reintentando login...")
+                        driver.refresh()
+                        time.sleep(5)
+                    else:
+                        logger.error("Se agotaron todos los intentos de login")
+                        raise e
+            return False
 
-            # Fill company code
-            company_code_input = driver.find_element(By.XPATH, "//input[@name='cod_emp']")
-            company_code_input.clear()
-            company_code_input.send_keys("331771")
-            time.sleep(1)
+        retry_login()
+        select_charges(driver)
+        select_paid_collection(driver)
+        download_txt(driver)
+        logger.info("Proceso de descarga de movimientos BBVA SOLES finalizado correctamente")
+        
+    except Exception as e:
+        logger.error(f"Ocurrió un error en bbva_ci_soles_descarga_txt: {e}")
+    finally:
+        if driver:
+            try:
+                driver.quit()
+                logger.info("Driver cerrado correctamente")
+            except Exception:
+                logger.warning("Error al cerrar el driver")
 
-            # Fill user code
-            user_code_input = driver.find_element(By.XPATH, "//input[@name='cod_usu']")
-            user_code_input.clear()
-            user_code_input.send_keys("00000093")
-            time.sleep(1)
 
-            # Fill password
-            password_input = driver.find_element(By.XPATH, "//input[@name='eai_password']")
-            password_input.clear()
-            password_input.send_keys("EEDEtpp2024")
-            time.sleep(3)
+def login(driver):
+    """
+    Realiza el proceso de login en BBVA Netcash. Si falla, lanza una excepción.
+    """
+    try:
+        logger.info("Iniciando login BBVA Netcash")
 
-            # Click 'Ingresar' button
-            login_button = driver.find_element(By.XPATH, "//button[text()='Ingresar']")
-            login_button.click()
-            time.sleep(10)
+        # Limpiar cookies y storage
+        driver.delete_all_cookies()
+        driver.get("https://www.bbvanetcash.pe")
+        driver.execute_script("window.localStorage.clear();")
+        driver.execute_script("window.sessionStorage.clear();")
+        time.sleep(5)  # Espera para carga inicial
 
-            # Refresh after login
-            driver.refresh()
-            time.sleep(3)
+        # Ingresar código de empresa
+        company_code_input = driver.find_element(By.XPATH, "//input[@name='cod_emp']")
+        company_code_input.clear()
+        company_code_input.send_keys("331771")
+        time.sleep(1)
 
-            print("Login successful!")
-            return  # Exit function if login succeeded
+        # Ingresar código de usuario
+        user_code_input = driver.find_element(By.XPATH, "//input[@name='cod_usu']")
+        user_code_input.clear()
+        user_code_input.send_keys("00000093")
+        time.sleep(1)
 
-        except Exception as e:
-            print(f"Login attempt {attempt} failed: {e}")
-            if attempt == max_attempts:
-                raise Exception("Login failed after maximum number of attempts.")
-            else:
-                print("Retrying login...")
-                time.sleep(5)  # Wait before retrying
+        # Ingresar contraseña
+        password_input = driver.find_element(By.XPATH, "//input[@name='eai_password']")
+        password_input.clear()
+        password_input.send_keys("EEDEtpp2024")
+        time.sleep(3)
+
+        # Click en Ingresar
+        login_button = driver.find_element(By.XPATH, "//button[text()='Ingresar']")
+        login_button.click()
+        time.sleep(10)
+
+        # Refrescar después del login
+        driver.refresh()
+        time.sleep(3)
+
+        logger.info("Login exitoso en BBVA Netcash")
+
+    except Exception as e:
+        logger.error(f"Error durante el login BBVA Netcash: {e}")
+        raise e
 
 def select_charges(driver):
     time.sleep(5)
@@ -191,11 +240,8 @@ def download_txt(driver):
         EC.presence_of_element_located((By.XPATH, "//input[@name='fecini']"))
     )
 
-    # Step 6: input date range
-    current_date = datetime.now().strftime("%d%m%Y")  # Format: DDMMYYYY
-
     start_date_input = driver.find_element(By.XPATH, "//input[@name='fecini']")
-    start_date_input.click()
+    ActionChains(driver).move_to_element(start_date_input).click().perform()
     time.sleep(1)
     start_date_input.send_keys(Keys.ENTER)
     time.sleep(1)
@@ -203,22 +249,35 @@ def download_txt(driver):
     time.sleep(5)
 
     end_date_input = driver.find_element(By.XPATH, "//input[@name='fecfin']")
-    #end_date_input.click()
-    #time.sleep(1)
+    time.sleep(1)
     end_date_input.send_keys(Keys.ENTER)
     time.sleep(1)
     end_date_input.send_keys(Keys.TAB)
     time.sleep(5)
 
-    # Step 7: click on 'Consultar' button
-    consult_button = WebDriverWait(driver, 10).until(
-    EC.presence_of_element_located((By.XPATH, "//input[@value='Consultar']"))
-    )
+    def click_consultar():
+        try:
+            logger.info("Esperando el botón 'Consultar'...")
 
-    ActionChains(driver).move_to_element(consult_button).perform()
+            # Espera hasta que el botón esté presente
+            consult_button = WebDriverWait(driver, 15).until(
+                EC.element_to_be_clickable((By.XPATH, "//input[@value='Consultar']"))
+            )
 
-    driver.execute_script("arguments[0].click();", consult_button)
+            # Mueve al botón con ActionChains
+            ActionChains(driver).move_to_element(consult_button).perform()
+            time.sleep(1)  # Pequeña pausa por si hay animación
 
+            # Clic con JavaScript como respaldo (si es necesario)
+            driver.execute_script("arguments[0].click();", consult_button)
+
+            logger.info("Se hizo clic en el botón 'Consultar' correctamente.")
+
+        except Exception as e:
+            logger.error(f"Error al intentar hacer clic en el botón 'Consultar': {e}")
+            raise e
+
+    click_consultar()
     # Step 8: download TXT
     time.sleep(3)
     WebDriverWait(driver, 60).until(
@@ -230,41 +289,72 @@ def download_txt(driver):
 
 MAX_ATTEMPTS_FLOW = 3
 
+def bbva_ci_soles_cargar_gescom(cfg):
+    """
+    Función principal que ejecuta todo el proceso
+    """
+    try:
+
+        ruta_input = Path(cfg['rutas']['ruta_input'])
+
+        # Buscar archivos que empiecen con "relacion_pago_"
+        archivos = list(ruta_input.glob("relacion_pago_*"))
+
+        if not archivos:
+            logger.error(f"No se encontró ningún archivo que empiece con: 'relacion_pago_' en {ruta_input}")
+            raise FileNotFoundError(f"No se encontró ningún archivo que empiece con: 'relacion_pago_' en {ruta_input}")
+
+        # Tomar el primer archivo encontrado
+        ruta_archivo = archivos[0]
+
+        with open(ruta_archivo, "rb") as archivo:
+            contenido_b64 = base64.b64encode(archivo.read()).decode()
+
+        payload = {
+            "format": "Bbva_HistóricoDeMovimientos",
+            "fileName": f"ultimos_movimientos_{datetime.now().strftime('%Y-%m-%dT%H%M%S.%f')[:-3]}.txt",
+            "base64File": contenido_b64
+        }
+
+        api_url = cfg['api']['api_gescom_transacciones']
+
+        headers = {"Content-Type": "application/json"}
+        logger.info("Enviando archivo a GESCOM")
+        response = requests.post(api_url, json=payload, headers=headers)
+
+        if response.status_code == 200:
+            logger.info("Archivo enviado exitosamente a GESCOM.")
+            return True
+        else:
+            logger.error(f"Error al enviar archivo a GESCOM: {response.status_code} - {response.text}")
+            return False, f"Error al enviar archivo a GESCOM: {response.status_code} - {response.text}"
+    except Exception as e:
+        logger.error(f"Excepción al cargar archivo a GESCOM: {e}")
+        return False, f"Excepción al cargar archivo a GESCOM: {e}"
+  
+
 def bot_run(cfg, mensaje):
     try:
-    # Always create driver first
-        driver = create_stealth_webdriver()
+        resultado = False
+        logger.info("Iniciando ejecución principal del bot BBVA SOLES")
+        
+        bbva_ci_soles_descarga_txt(cfg)
+        resultado = True
+        mensaje = "Descarga de archivo exitosa"
 
-        # First: try login → only ONCE (it has its own 3 internal attempts)
-        login(driver, 3)  # if this fails, exception will be raised → whole flow aborts
-
-        print("✓ Login successful. Continuing with the flow...")
-
-        # Now retry the rest of the flow if needed
-        for attempt in range(1, MAX_ATTEMPTS_FLOW + 1):
-            try:
-                print(f"Flow attempt {attempt}/{MAX_ATTEMPTS_FLOW} running...")
-
-                select_charges(driver)
-                select_paid_collection(driver)
-                download_txt(driver)
-
-                print("✓ Process completed successfully.")
-                break  # Exit loop if success
-
-            except Exception as e:
-                print(f"Error in flow on attempt {attempt}: {e}")
-                if attempt == MAX_ATTEMPTS_FLOW:
-                    print("Flow failed after maximum attempts.")
-                    raise
-                else:
-                    print("Retrying flow steps...")
-                    time.sleep(5)  # Optional: wait a bit before retrying
+        if resultado:
+            bbva_ci_soles_cargar_gescom(cfg)
+            mensaje = "Carga de archivo exitosa"
+            resultado = True
 
     except Exception as e:
-        print(f"Fatal error: {e}")
+        logger.error(f"Error en bot BBVA SOLES: {e}")
+        if platform.system() == 'Windows':
+            os.system("taskkill /im chrome.exe /f")
+        else:
+            os.system("pkill -f chrome")
+        raise Exception(f"Error en bot BBVA SOLES: {e}") from e
 
     finally:
-        # Always close driver at the end
-        driver.quit()
-
+        logger.info("Navegador cerrado")
+        return resultado, mensaje

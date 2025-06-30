@@ -479,7 +479,7 @@ def bcp_cargar_gescom(cfg):
 
         payload = {
             "format": "Bcp_MovimientosDelDía",
-            "fileName": f"043_ultimos_movimientos_{datetime.now().strftime('%Y-%m-%dT%H%M%S.%f')[:-3]}.txt",
+            "fileName": f"ultimos_movimientos_{datetime.now().strftime('%Y-%m-%dT%H%M%S.%f')[:-3]}.txt",
             "base64File": contenido_b64
         }
 

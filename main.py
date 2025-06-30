@@ -68,8 +68,8 @@ def main():
         # Ejecución de los bots
         mensaje = ""  # Initialize mensaje variable
         for bot_name, bot_function in [
-            ("Bot 01 - BCP", Bot_01_CI_BCP),
             ("Bot 02 - BBVA Soles", Bot_02_CI_BBVA_SOLES),
+            ("Bot 01 - BCP", Bot_01_CI_BCP),
             ("Bot 03 - BBVA Dólares", Bot_03_CI_BBVA_SOLES)
         ]:
             logger.info(f"==================== INICIANDO {bot_name} ====================")
