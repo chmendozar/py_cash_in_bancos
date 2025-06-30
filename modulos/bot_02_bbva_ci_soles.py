@@ -308,7 +308,7 @@ def bbva_ci_soles_cargar_gescom(cfg):
         ruta_archivo = archivos[0]
 
         with open(ruta_archivo, "rb") as archivo:
-            contenido_b64 = base64.b64encode(archivo.read()).decode(encoding="utf-8")
+            contenido_b64 = base64.b64encode(archivo.read())
 
         payload = {
             "format": "Bbva_HistóricoDeMovimientos",
