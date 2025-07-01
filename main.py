@@ -9,7 +9,7 @@ from utilidades.limpieza import cerrarProcesos as Limpieza
 from modulos.bot_00_configuracion import bot_run as Bot_00_Configuracion
 from modulos.bot_01_ci_bcp import bot_run as Bot_01_CI_BCP
 from modulos.bot_02_bbva_ci_soles import bot_run as Bot_02_CI_BBVA_SOLES
-from modulos.bot_03_bbva_ci_dolares import bot_run as Bot_03_CI_BBVA_SOLES
+from modulos.bot_03_bbva_ci_dolares import bot_run as Bot_03_CI_BBVA_DOLARES
 from utilidades.notificaiones_whook import WebhookNotifier
 
 logger = logging.getLogger("Main - Orquestador")
@@ -69,8 +69,8 @@ def main():
         mensaje = ""  # Initialize mensaje variable
         for bot_name, bot_function in [
             ("Bot 02 - BBVA Soles", Bot_02_CI_BBVA_SOLES),
-            ("Bot 01 - BCP", Bot_01_CI_BCP),
-            ("Bot 03 - BBVA Dólares", Bot_03_CI_BBVA_SOLES)
+            ("Bot 03 - BBVA Dólares", Bot_03_CI_BBVA_DOLARES),
+            ("Bot 01 - BCP", Bot_01_CI_BCP)
         ]:
             logger.info(f"==================== INICIANDO {bot_name} ====================")
             webhook.send_notification(f"Iniciando {bot_name}")

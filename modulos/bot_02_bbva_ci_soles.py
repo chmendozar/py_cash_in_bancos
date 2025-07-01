@@ -35,24 +35,46 @@ def create_stealth_webdriver(cfg):
 
     options = webdriver.ChromeOptions()
     options.add_argument("user-data-dir=/app/bcp/perfil/chrome")
+    
+    # Argumentos anti-detección mejorados
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option('useAutomationExtension', False)
     options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36')
+    options.add_argument("--disable-extensions")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-infobars")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-browser-side-navigation")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-first-run")
+    options.add_argument("--no-service-autorun")
+    options.add_argument("--password-store=basic")
+    
+    # User agent más actualizado
+    options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36')
 
     prefs = {
-        "download.default_directory": download_path,  # <<< Aquí se fuerza la carpeta de descarga
+        "download.default_directory": download_path,
         "credentials_enable_service": False,
         "profile.password_manager_enabled": False,
         "profile.default_content_setting_values.notifications": 2,
         "profile.default_content_settings.popups": 0,
         "profile.managed_default_content_settings.images": 1,
         "profile.default_content_setting_values.cookies": 1,
-        "profile.block_third_party_cookies": False
+        "profile.block_third_party_cookies": False,
+        "profile.default_content_setting_values.plugins": 1,
+        "profile.content_settings.plugin_whitelist.adobe-flash-player": 1,
+        "profile.content_settings.exceptions.plugins.*,*.per_resource.adobe-flash-player": 1
     }
     options.add_experimental_option("prefs", prefs)
 
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
+    # Ejecutar scripts anti-detección adicionales
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    driver.execute_script("Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]})")
+    driver.execute_script("Object.defineProperty(navigator, 'languages', {get: () => ['es-ES', 'es']})")
+    driver.execute_script("window.chrome = {runtime: {}}")
 
     stealth(driver,
         languages=["es-ES", "es"],
@@ -94,11 +116,29 @@ def bbva_ci_soles_descarga_txt(cfg):
             return False
 
         retry_login()
-        select_charges(driver)
-        select_paid_collection(driver)
-        download_txt(driver)
-        logger.info("Proceso de descarga de movimientos BBVA SOLES finalizado correctamente")
-        return True
+        
+        # Reintentar desde selección de cobros si hay problemas
+        max_flow_attempts = 3
+        for flow_attempt in range(max_flow_attempts):
+            try:
+                logger.info(f"Intento de flujo desde cobros {flow_attempt + 1}/{max_flow_attempts}")
+                select_charges(driver)
+                select_paid_collection(driver)
+                download_txt(driver)
+                logger.info("Proceso de descarga de movimientos BBVA SOLES finalizado correctamente")
+                return True
+            except Exception as e:
+                logger.warning(f"Error en flujo intento {flow_attempt + 1}: {e}")
+                if flow_attempt < max_flow_attempts - 1:
+                    logger.info("Reiniciando desde selección de cobros...")
+                    # Solo volver al contexto principal, no recargar página completa
+                    driver.switch_to.default_content()
+                    time.sleep(3)
+                else:
+                    logger.error("Se agotaron todos los intentos de flujo")
+                    raise e
+        
+        return False
     except Exception as e:
         logger.error(f"Ocurrió un error en bbva_ci_soles_descarga_txt: {e}")
         return False
@@ -322,22 +362,31 @@ def download_txt(driver):
     start_date_input = wait.until(
         EC.element_to_be_clickable((By.XPATH, "//input[@name='fecini']"))
     )
-    ActionChains(driver).move_to_element(start_date_input).click().perform()
+    
+    # Movimiento más humano para interactuar con campos de fecha
+    driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", start_date_input)
     time.sleep(1)
+    ActionChains(driver).move_to_element(start_date_input).click().perform()
+    time.sleep(2)  # Pausa más larga como lo haría un humano
     start_date_input.send_keys(Keys.ENTER)
     time.sleep(1)
     start_date_input.send_keys(Keys.TAB)
-    time.sleep(5)
+    time.sleep(3)  # Pausa entre campos
 
     # Esperar que el campo de fecha final esté presente y clickeable
     end_date_input = wait.until(
         EC.element_to_be_clickable((By.XPATH, "//input[@name='fecfin']"))
     )
+    
+    # Movimiento más humano para el segundo campo
+    driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", end_date_input)
     time.sleep(1)
+    ActionChains(driver).move_to_element(end_date_input).click().perform()
+    time.sleep(2)
     end_date_input.send_keys(Keys.ENTER)
     time.sleep(1)
     end_date_input.send_keys(Keys.TAB)
-    time.sleep(5)
+    time.sleep(3)
 
     def click_consultar():
         try:
@@ -348,28 +397,50 @@ def download_txt(driver):
                 EC.element_to_be_clickable((By.XPATH, "//input[@value='Consultar']"))
             )
 
-            # Mueve al botón con ActionChains
+            # Scroll hacia el botón para asegurar que esté visible
+            driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", consult_button)
+            time.sleep(2)  # Esperar que termine el scroll
+
+            # Simular movimiento de mouse humano
             ActionChains(driver).move_to_element(consult_button).perform()
-            time.sleep(1)  # Pequeña pausa por si hay animación
+            time.sleep(1)  # Pausa como lo haría un humano
 
-            # Clic con JavaScript como respaldo (si es necesario)
-            driver.execute_script("arguments[0].click();", consult_button)
+            # Intentar clic normal primero
+            try:
+                consult_button.click()
+                logger.info("Se hizo clic en el botón 'Consultar' con click normal.")
+            except:
+                # Si falla, usar JavaScript como respaldo
+                driver.execute_script("arguments[0].click();", consult_button)
+                logger.info("Se hizo clic en el botón 'Consultar' con JavaScript.")
 
-            logger.info("Se hizo clic en el botón 'Consultar' correctamente.")
+            # Esperar más tiempo después del clic para permitir procesamiento
+            time.sleep(5)
 
         except Exception as e:
             logger.error(f"Error al intentar hacer clic en el botón 'Consultar': {e}")
             raise e
 
     click_consultar()
-    
-    # Step 8: esperar y hacer clic en el enlace de descarga TXT
-    time.sleep(3)
-    download_link = wait.until(
-        EC.element_to_be_clickable((By.XPATH, "//a[@title='Descargar Txt']"))
-    )
-    download_link.click()
-    time.sleep(5)
+    time.sleep(10)
+
+    # Verificar si aparece el botón de descarga TXT en 60 segundos
+    try:
+        download_link = WebDriverWait(driver, 60).until(
+            EC.element_to_be_clickable((By.XPATH, "//a[@title='Descargar Txt']"))
+        )
+        logger.info("Botón de descarga TXT encontrado exitosamente")
+        
+        # Scroll hacia el link de descarga y hacer clic más humano
+        driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", download_link)
+        time.sleep(2)
+        ActionChains(driver).move_to_element(download_link).click().perform()
+        time.sleep(10)
+        
+    except Exception as e:
+        logger.warning(f"No se encontró el botón de descarga TXT en 60 segundos: {e}")
+        # Si no aparece el botón de descarga, lanzar excepción para reiniciar desde cobros
+        raise Exception("Botón de descarga TXT no encontrado - se requiere reinicio desde selección de cobros")
 
 MAX_ATTEMPTS_FLOW = 3
 
