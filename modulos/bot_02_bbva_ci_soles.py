@@ -35,7 +35,7 @@ def create_stealth_webdriver(cfg):
     download_path = str(Path(cfg['rutas']['ruta_input']).absolute())
     profile_dir = str(Path(cfg['rutas']['ruta_perfil_bbva_soles']).absolute())
     options = webdriver.ChromeOptions()
-    options.add_argument(f"user-data-dir={profile_dir}")
+    # options.add_argument(f"user-data-dir={profile_dir}")
     
     # Argumentos anti-detección mejorados
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
@@ -156,7 +156,6 @@ def bbva_ci_soles_descarga_txt(cfg):
             except Exception:
                 logger.warning("Error al cerrar el driver")
 
-
 def login(driver):
     """
     Realiza el proceso de login en BBVA Netcash. Si falla, lanza una excepción.
@@ -200,7 +199,7 @@ def login(driver):
         login_button = wait.until(
             EC.element_to_be_clickable((By.XPATH, "//button[text()='Ingresar']"))
         )
-        login_button.click()
+        driver.execute_script("arguments[0].click();", login_button)
         time.sleep(10)
 
         # Refrescar después del login
@@ -216,33 +215,12 @@ def login(driver):
 def select_charges(driver):
     wait = WebDriverWait(driver, 15)
     time.sleep(5)
-    
-    # Esperar que el app-template esté presente
-    app_template_host = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "bbva-btge-app-template"))
-    )
+    app_template_host = driver.find_element(By.CSS_SELECTOR, "bbva-btge-app-template")
     app_template_shadow_root = driver.execute_script("return arguments[0].shadowRoot", app_template_host)
 
-    # Esperar que el sidebar-menu esté presente
-    sidebar_menu_host = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "bbva-btge-sidebar-menu"))
-    )
+    sidebar_menu_host = driver.find_element(By.CSS_SELECTOR, "bbva-btge-sidebar-menu")
     sidebar_menu_shadow_root = driver.execute_script("return arguments[0].shadowRoot", sidebar_menu_host)
 
-    # Esperar hasta que el elemento del menú de cargos esté clickeable
-    # Nota: Para elementos dentro de shadow DOM, usamos JavaScript para verificar
-    def charges_menu_clickable(driver):
-        try:
-            charges_menu_item = sidebar_menu_shadow_root.find_element(
-                By.CSS_SELECTOR,
-                "bbva-web-navigation-menu-item[icon='bbva:paysheetdollar']"
-            )
-            return charges_menu_item.is_enabled() and charges_menu_item.is_displayed()
-        except:
-            return False
-
-    wait.until(charges_menu_clickable)
-    
     charges_menu_item = sidebar_menu_shadow_root.find_element(
         By.CSS_SELECTOR,
         "bbva-web-navigation-menu-item[icon='bbva:paysheetdollar']"
@@ -251,123 +229,73 @@ def select_charges(driver):
     time.sleep(3)
 
 def select_paid_collection(driver):
-    wait = WebDriverWait(driver, 15)
     
-    # Step 1: esperar que el shadow host principal esté presente
-    main_shadow_host = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "bbva-btge-menurization-landing-solution-page"))
-    )
+    # Step 1: locate the main shadow host
+    main_shadow_host = driver.find_element(By.CSS_SELECTOR, "bbva-btge-menurization-landing-solution-page")
     main_shadow_root = driver.execute_script("return arguments[0].shadowRoot", main_shadow_host)
 
-    # Step 2: esperar el iframe dentro del primer shadow DOM
-    def iframe_host_present(driver):
-        try:
-            iframe_host = main_shadow_root.find_element(By.CSS_SELECTOR, "bbva-core-iframe")
-            return iframe_host is not None
-        except:
-            return False
-
-    wait.until(iframe_host_present)
+    # Step 2: locate iframe inside first shadow DOM
     iframe_host = main_shadow_root.find_element(By.CSS_SELECTOR, "bbva-core-iframe")
     iframe_shadow_root = driver.execute_script("return arguments[0].shadowRoot", iframe_host)
-    
-    # Esperar que el iframe esté presente y cambiar a él
-    def core_iframe_present(driver):
-        try:
-            core_iframe_element = iframe_shadow_root.find_element(By.CSS_SELECTOR, "iframe")
-            return core_iframe_element is not None
-        except:
-            return False
-
-    wait.until(core_iframe_present)
     core_iframe_element = iframe_shadow_root.find_element(By.CSS_SELECTOR, "iframe")
     driver.switch_to.frame(core_iframe_element)
 
-    # Step 3: esperar que el segundo shadow host esté presente dentro del iframe
-    layout_shadow_host = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "bbva-btge-menurization-landing-solution-home-page"))
-    )
+    # Step 3: locate second shadow host inside iframe
+    layout_shadow_host = driver.find_element(By.CSS_SELECTOR, "bbva-btge-menurization-landing-solution-home-page")
     layout_shadow_root = driver.execute_script("return arguments[0].shadowRoot", layout_shadow_host)
 
-    # Step 4: esperar que los links estén presentes y buscar 'Recaudos pagados'
-    def recaudos_link_present(driver):
-        try:
-            link_elements = layout_shadow_root.find_elements(By.CSS_SELECTOR, "bbva-web-link")
-            for link_element in link_elements:
-                if link_element.text.strip() == "Recaudos pagados":
-                    return link_element
-            return False
-        except:
-            return False
+    # Step 4: find the links inside the second shadow DOM
+    link_elements = layout_shadow_root.find_elements(By.CSS_SELECTOR, "bbva-web-link")
+    for link_element in link_elements:
+        link_text = link_element.text.strip()
 
-    recaudos_link = wait.until(recaudos_link_present)
-    print("Found 'Recaudos pagados', clicking the link.")
-    recaudos_link.click()
-
+        # Step 5: look for 'Recaudos pagados' link and click it
+        if link_text == "Recaudos pagados":
+            print("Found 'Recaudos pagados', clicking the link.")
+            link_element.click()
+            break
     # Step 6: esperar que la siguiente página se cargue
     time.sleep(5)
 
 def download_txt(driver):
-    wait = WebDriverWait(driver, 15)
     time.sleep(5)
 
-    # Step 0: regresar al DOM principal
+    # Step 0: return to main DOM
     driver.switch_to.default_content()
-    
-    # Esperar que legacy-page esté presente
-    legacy_page_host = wait.until(
+    WebDriverWait(driver, 15).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "legacy-page"))
     )
 
-    # Step 1: entrar al shadowRoot de legacy-page
+    # Step 1: enter shadowRoot of legacy-page
+    legacy_page_host = driver.find_element(By.CSS_SELECTOR, "legacy-page")
     legacy_page_shadow_root = driver.execute_script("return arguments[0].shadowRoot", legacy_page_host)
 
-    # Step 2: esperar y entrar al shadowRoot de bbva-core-iframe
-    def iframe_host_in_legacy_present(driver):
-        try:
-            iframe_host = legacy_page_shadow_root.find_element(By.CSS_SELECTOR, "bbva-core-iframe")
-            return iframe_host is not None
-        except:
-            return False
-
-    wait.until(iframe_host_in_legacy_present)
+    # Step 2: enter shadowRoot of bbva-core-iframe
     iframe_host = legacy_page_shadow_root.find_element(By.CSS_SELECTOR, "bbva-core-iframe")
     iframe_shadow_root = driver.execute_script("return arguments[0].shadowRoot", iframe_host)
 
-    # Step 3: esperar y cambiar al iframe interno
-    def core_iframe_in_legacy_present(driver):
-        try:
-            core_iframe_element = iframe_shadow_root.find_element(By.CSS_SELECTOR, "iframe")
-            return core_iframe_element is not None
-        except:
-            return False
-
-    wait.until(core_iframe_in_legacy_present)
+    # Step 3: switch to internal iframe inside bbva-core-iframe → iframe#bbvaIframe
     core_iframe_element = iframe_shadow_root.find_element(By.CSS_SELECTOR, "iframe")
     driver.switch_to.frame(core_iframe_element)
 
-    print("✓ Inside iframe#bbvaIframe")
+    # Optional: log when inside iframe
+    print("Inside iframe#bbvaIframe")
 
-    # Step 4: esperar iframe#kyop-central-load-area y cambiar a él
-    kyop_iframe_element = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "iframe#kyop-central-load-area"))
-    )
+    # Step 4: wait for iframe#kyop-central-load-area and switch to it
+    wait = WebDriverWait(driver, 10)
+    kyop_iframe_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "iframe#kyop-central-load-area")))
     driver.switch_to.frame(kyop_iframe_element)
 
     print("Inside iframe#kyop-central-load-area")
     time.sleep(10)
 
     # Step 5: esperar y hacer clic en el enlace de cuenta deseado
-    soles_account_link = wait.until(
-        EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, 'LIGO- LA MAGICA SOLES')]"))
-    )
-    ActionChains(driver).move_to_element(soles_account_link).click().perform()
+    soles_account_link = driver.find_element(By.XPATH, "//a[contains(@href, 'LIGO- LA MAGICA SOLES')]")
+    soles_account_link.click()
     time.sleep(5)
     
     # Esperar que el campo de fecha inicial esté presente y clickeable
-    start_date_input = wait.until(
-        EC.element_to_be_clickable((By.XPATH, "//input[@name='fecini']"))
-    )
+    start_date_input = driver.find_element(By.XPATH, "//input[@name='fecini']")
     
     # Movimiento más humano para interactuar con campos de fecha
     driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", start_date_input)
@@ -380,9 +308,7 @@ def download_txt(driver):
     time.sleep(3)  # Pausa entre campos
 
     # Esperar que el campo de fecha final esté presente y clickeable
-    end_date_input = wait.until(
-        EC.element_to_be_clickable((By.XPATH, "//input[@name='fecfin']"))
-    )
+    end_date_input = driver.find_element(By.XPATH, "//input[@name='fecfin']")
     
     # Movimiento más humano para el segundo campo
     driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", end_date_input)
@@ -399,9 +325,7 @@ def download_txt(driver):
             logger.info("Esperando el botón 'Consultar'...")
 
             # Espera hasta que el botón esté presente y clickeable
-            consult_button = wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//input[@value='Consultar']"))
-            )
+            consult_button = driver.find_element(By.XPATH, "//input[@value='Consultar']")
 
             # Scroll hacia el botón para asegurar que esté visible
             driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", consult_button)
@@ -411,14 +335,8 @@ def download_txt(driver):
             ActionChains(driver).move_to_element(consult_button).perform()
             time.sleep(1)  # Pausa como lo haría un humano
 
-            # Intentar clic normal primero
-            try:
-                consult_button.click()
-                logger.info("Se hizo clic en el botón 'Consultar' con click normal.")
-            except:
-                # Si falla, usar JavaScript como respaldo
-                driver.execute_script("arguments[0].click();", consult_button)
-                logger.info("Se hizo clic en el botón 'Consultar' con JavaScript.")
+            driver.execute_script("arguments[0].click();", consult_button)
+            logger.info("Se hizo clic en el botón 'Consultar' con JavaScript.")
 
             # Esperar más tiempo después del clic para permitir procesamiento
             time.sleep(5)
@@ -428,7 +346,7 @@ def download_txt(driver):
             raise e
 
     click_consultar()
-    time.sleep(10)
+    time.sleep(5)
 
     # Verificar si aparece el botón de descarga TXT en 60 segundos
     try:
@@ -493,13 +411,31 @@ def bbva_ci_soles_cargar_gescom(cfg):
         logger.error(f"Excepción al cargar archivo a GESCOM: {e}")
         return False, f"Excepción al cargar archivo a GESCOM: {e}"
   
-
 def bot_run(cfg, mensaje):
     try:
         resultado = False
         logger.info("Iniciando ejecución principal del bot BBVA SOLES")
         webhook = WebhookNotifier(cfg['webhook']['webhook_rpa_url'])        
-        resultado = bbva_ci_soles_descarga_txt(cfg)
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                logger.info(f"Intento de descarga {attempt + 1}/{max_attempts}")
+                resultado = bbva_ci_soles_descarga_txt(cfg)
+                if resultado:
+                    logger.info("Descarga exitosa")
+                    break
+                else:
+                    logger.warning(f"Descarga fallida en intento {attempt + 1}")
+                    if attempt < max_attempts - 1:
+                        time.sleep(5)  # Esperar 5 segundos antes del siguiente intento
+            except Exception as e:
+                logger.error(f"Error en intento {attempt + 1}: {e}")
+                if attempt < max_attempts - 1:
+                    logger.info("Reintentando descarga...")
+                    time.sleep(5)
+                else:
+                    logger.error("Se agotaron todos los intentos de descarga")
+                    raise e
         webhook.send_notification(f"Bot BBVA SOLES - Archivo descargado")
         if resultado:
             webhook.send_notification(f"Bot BBVA SOLES: Cargar archivo a GESCOM")

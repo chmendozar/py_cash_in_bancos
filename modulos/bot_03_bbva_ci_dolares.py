@@ -35,7 +35,7 @@ def create_stealth_webdriver(cfg):
     download_path = str(Path(cfg['rutas']['ruta_input']).absolute())
     profile_dir = str(Path(cfg['rutas']['ruta_perfil_bbva_dolares']).absolute())
     options = webdriver.ChromeOptions()
-    options.add_argument(f"user-data-dir={profile_dir}")
+    # options.add_argument(f"user-data-dir={profile_dir}")
     
     # Argumentos anti-detección mejorados
     options.add_experimental_option("excludeSwitches", ["enable-automation"])

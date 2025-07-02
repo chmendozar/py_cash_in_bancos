@@ -107,7 +107,7 @@ def login(driver):
     retry_action(close_modal, "Error al cerrar modal")
     time.sleep(10)
     def enter_card():
-        campo_tarjeta = WebDriverWait(driver, 15).until(
+        campo_tarjeta = WebDriverWait(driver, 60).until(
             EC.presence_of_element_located((By.XPATH, "//input[contains(@name, 'ciam-input-card')]"))
         )
         campo_tarjeta.clear()
