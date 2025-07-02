@@ -11,6 +11,7 @@ from datetime import datetime
 from selenium.webdriver.common.keys import Keys
 from selenium_stealth import stealth
 from selenium.webdriver.common.action_chains import ActionChains
+from utilidades.notificaiones_whook import WebhookNotifier
 import logging
 import base64
 from pathlib import Path
@@ -498,11 +499,14 @@ def bot_run(cfg, mensaje):
         resultado = False
         logger.info("Iniciando ejecución principal del bot BBVA DOLARES")
         
+        webhook = WebhookNotifier(cfg['webhook']['webhook_rpa_url'])        
         resultado = bbva_ci_dolares_descarga_txt(cfg)
-
+        webhook.send_notification(f"Bot BBVA DOLARES - Archivo descargado")
         if resultado:
+            webhook.send_notification(f"Bot BBVA DOLARES: Cargar archivo a GESCOM")
             bbva_ci_dolares_cargar_gescom(cfg)
             mensaje = "Carga de archivo exitosa"
+            webhook.send_notification(f"Bot BBVA DOLARES: Carga de archivo exitosa")
             resultado = True
 
     except Exception as e:

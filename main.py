@@ -68,9 +68,10 @@ def main():
         # Ejecución de los bots
         mensaje = ""  # Initialize mensaje variable
         for bot_name, bot_function in [
+            ("Bot 01 - BCP", Bot_01_CI_BCP),
             ("Bot 02 - BBVA Soles", Bot_02_CI_BBVA_SOLES),
             ("Bot 03 - BBVA Dólares", Bot_03_CI_BBVA_DOLARES),
-            ("Bot 01 - BCP", Bot_01_CI_BCP)
+            
         ]:
             logger.info(f"==================== INICIANDO {bot_name} ====================")
             webhook.send_notification(f"Iniciando {bot_name}")

@@ -17,6 +17,7 @@ from pathlib import Path
 import requests
 import os
 import platform
+from utilidades.notificaiones_whook import WebhookNotifier
 
 logger = logging.getLogger("Bot 02 - BBVA CI Soles")
 
@@ -92,8 +93,6 @@ def create_stealth_webdriver(cfg):
     )
 
     return driver
-
-
 
 def bbva_ci_soles_descarga_txt(cfg):
     """
@@ -499,12 +498,14 @@ def bot_run(cfg, mensaje):
     try:
         resultado = False
         logger.info("Iniciando ejecución principal del bot BBVA SOLES")
-        
+        webhook = WebhookNotifier(cfg['webhook']['webhook_rpa_url'])        
         resultado = bbva_ci_soles_descarga_txt(cfg)
-
+        webhook.send_notification(f"Bot BBVA SOLES - Archivo descargado")
         if resultado:
+            webhook.send_notification(f"Bot BBVA SOLES: Cargar archivo a GESCOM")
             bbva_ci_soles_cargar_gescom(cfg)
             mensaje = "Carga de archivo exitosa"
+            webhook.send_notification(f"Bot BBVA SOLES: Carga de archivo exitosa")
             resultado = True
 
     except Exception as e:
