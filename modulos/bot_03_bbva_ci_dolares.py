@@ -215,35 +215,14 @@ def login(driver):
         raise e
 
 def select_charges(driver):
-    wait = WebDriverWait(driver, 15)
-    time.sleep(5)
     
-    # Esperar que el app-template esté presente
-    app_template_host = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "bbva-btge-app-template"))
-    )
+    time.sleep(5)
+    app_template_host = driver.find_element(By.CSS_SELECTOR, "bbva-btge-app-template")
     app_template_shadow_root = driver.execute_script("return arguments[0].shadowRoot", app_template_host)
 
-    # Esperar que el sidebar-menu esté presente
-    sidebar_menu_host = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "bbva-btge-sidebar-menu"))
-    )
+    sidebar_menu_host = driver.find_element(By.CSS_SELECTOR, "bbva-btge-sidebar-menu")
     sidebar_menu_shadow_root = driver.execute_script("return arguments[0].shadowRoot", sidebar_menu_host)
 
-    # Esperar hasta que el elemento del menú de cargos esté clickeable
-    # Nota: Para elementos dentro de shadow DOM, usamos JavaScript para verificar
-    def charges_menu_clickable(driver):
-        try:
-            charges_menu_item = sidebar_menu_shadow_root.find_element(
-                By.CSS_SELECTOR,
-                "bbva-web-navigation-menu-item[icon='bbva:paysheetdollar']"
-            )
-            return charges_menu_item.is_enabled() and charges_menu_item.is_displayed()
-        except:
-            return False
-
-    wait.until(charges_menu_clickable)
-    
     charges_menu_item = sidebar_menu_shadow_root.find_element(
         By.CSS_SELECTOR,
         "bbva-web-navigation-menu-item[icon='bbva:paysheetdollar']"
@@ -252,12 +231,9 @@ def select_charges(driver):
     time.sleep(3)
 
 def select_paid_collection(driver):
-    wait = WebDriverWait(driver, 15)
     
     # Step 1: esperar que el shadow host principal esté presente
-    main_shadow_host = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "bbva-btge-menurization-landing-solution-page"))
-    )
+    main_shadow_host = driver.find_element(By.CSS_SELECTOR, "bbva-btge-menurization-landing-solution-page")
     main_shadow_root = driver.execute_script("return arguments[0].shadowRoot", main_shadow_host)
 
     # Step 2: esperar el iframe dentro del primer shadow DOM
@@ -268,7 +244,7 @@ def select_paid_collection(driver):
         except:
             return False
 
-    wait.until(iframe_host_present)
+    iframe_host_present(driver)
     iframe_host = main_shadow_root.find_element(By.CSS_SELECTOR, "bbva-core-iframe")
     iframe_shadow_root = driver.execute_script("return arguments[0].shadowRoot", iframe_host)
     
@@ -280,14 +256,12 @@ def select_paid_collection(driver):
         except:
             return False
 
-    wait.until(core_iframe_present)
+    core_iframe_present(driver)
     core_iframe_element = iframe_shadow_root.find_element(By.CSS_SELECTOR, "iframe")
     driver.switch_to.frame(core_iframe_element)
 
     # Step 3: esperar que el segundo shadow host esté presente dentro del iframe
-    layout_shadow_host = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "bbva-btge-menurization-landing-solution-home-page"))
-    )
+    layout_shadow_host = driver.find_element(By.CSS_SELECTOR, "bbva-btge-menurization-landing-solution-home-page")
     layout_shadow_root = driver.execute_script("return arguments[0].shadowRoot", layout_shadow_host)
 
     # Step 4: esperar que los links estén presentes y buscar 'Recaudos pagados'
@@ -301,24 +275,20 @@ def select_paid_collection(driver):
         except:
             return False
 
-    recaudos_link = wait.until(recaudos_link_present)
+    recaudos_link = recaudos_link_present(driver)
     print("Found 'Recaudos pagados', clicking the link.")
-    recaudos_link.click()
+    driver.execute_script("arguments[0].click();", recaudos_link)
 
     # Step 6: esperar que la siguiente página se cargue
     time.sleep(5)
 
 def download_txt(driver):
-    wait = WebDriverWait(driver, 15)
     time.sleep(5)
 
-    # Step 0: regresar al DOM principal
     driver.switch_to.default_content()
     
     # Esperar que legacy-page esté presente
-    legacy_page_host = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "legacy-page"))
-    )
+    legacy_page_host = driver.find_element(By.CSS_SELECTOR, "legacy-page")
 
     # Step 1: entrar al shadowRoot de legacy-page
     legacy_page_shadow_root = driver.execute_script("return arguments[0].shadowRoot", legacy_page_host)
@@ -331,7 +301,7 @@ def download_txt(driver):
         except:
             return False
 
-    wait.until(iframe_host_in_legacy_present)
+    iframe_host_in_legacy_present(driver)
     iframe_host = legacy_page_shadow_root.find_element(By.CSS_SELECTOR, "bbva-core-iframe")
     iframe_shadow_root = driver.execute_script("return arguments[0].shadowRoot", iframe_host)
 
@@ -343,32 +313,26 @@ def download_txt(driver):
         except:
             return False
 
-    wait.until(core_iframe_in_legacy_present)
+    core_iframe_in_legacy_present(driver)
     core_iframe_element = iframe_shadow_root.find_element(By.CSS_SELECTOR, "iframe")
     driver.switch_to.frame(core_iframe_element)
 
     print("Inside iframe#bbvaIframe")
 
     # Step 4: esperar iframe#kyop-central-load-area y cambiar a él
-    kyop_iframe_element = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "iframe#kyop-central-load-area"))
-    )
+    kyop_iframe_element = driver.find_element(By.CSS_SELECTOR, "iframe#kyop-central-load-area")
     driver.switch_to.frame(kyop_iframe_element)
 
     print("Inside iframe#kyop-central-load-area")
     time.sleep(10)
 
     # Step 5: esperar y hacer clic en el enlace de cuenta deseado (LIGO-LA MAGICA DOLARES)
-    dolares_account_link = wait.until(
-        EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, 'LIGO-LA MAGICA DOLARES')]"))
-    )
+    dolares_account_link = driver.find_element(By.XPATH, "//a[contains(@href, 'LIGO-LA MAGICA DOLARES')]")
     ActionChains(driver).move_to_element(dolares_account_link).click().perform()
     time.sleep(5)
     
     # Esperar que el campo de fecha inicial esté presente y clickeable
-    start_date_input = wait.until(
-        EC.element_to_be_clickable((By.XPATH, "//input[@name='fecini']"))
-    )
+    start_date_input = driver.find_element(By.XPATH, "//input[@name='fecini']")
     
     # Movimiento más humano para interactuar con campos de fecha
     driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", start_date_input)
@@ -381,9 +345,7 @@ def download_txt(driver):
     time.sleep(3)  # Pausa entre campos
 
     # Esperar que el campo de fecha final esté presente y clickeable
-    end_date_input = wait.until(
-        EC.element_to_be_clickable((By.XPATH, "//input[@name='fecfin']"))
-    )
+    end_date_input = driver.find_element(By.XPATH, "//input[@name='fecfin']")
     
     # Movimiento más humano para el segundo campo
     driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", end_date_input)
@@ -400,9 +362,7 @@ def download_txt(driver):
             logger.info("Esperando el botón 'Consultar'...")
 
             # Espera hasta que el botón esté presente y clickeable
-            consult_button = wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//input[@value='Consultar']"))
-            )
+            consult_button = driver.find_element(By.XPATH, "//input[@value='Consultar']")
 
             # Scroll hacia el botón para asegurar que esté visible
             driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", consult_button)
@@ -412,14 +372,8 @@ def download_txt(driver):
             ActionChains(driver).move_to_element(consult_button).perform()
             time.sleep(1)  # Pausa como lo haría un humano
 
-            # Intentar clic normal primero
-            try:
-                consult_button.click()
-                logger.info("Se hizo clic en el botón 'Consultar' con click normal.")
-            except:
-                # Si falla, usar JavaScript como respaldo
-                driver.execute_script("arguments[0].click();", consult_button)
-                logger.info("Se hizo clic en el botón 'Consultar' con JavaScript.")
+            driver.execute_script("arguments[0].click();", consult_button)
+            logger.info("Se hizo clic en el botón 'Consultar' con JavaScript.")
 
             # Esperar más tiempo después del clic para permitir procesamiento
             time.sleep(5)
@@ -429,12 +383,20 @@ def download_txt(driver):
             raise e
 
     click_consultar()
+    time.sleep(5)
     
+    # Verificar si aparece el mensaje de error de no hay movimientos
+    try:
+        error_element = driver.find_element(By.XPATH, "//div[@class='msj msj_err']")
+        if error_element.is_displayed():
+            logger.warning(error_element.text)
+            raise Exception(error_element.text)
+    except Exception as e:
+        return False
+
     # Verificar si aparece el botón de descarga TXT en 60 segundos
     try:
-        download_link = WebDriverWait(driver, 60).until(
-            EC.element_to_be_clickable((By.XPATH, "//a[@title='Descargar Txt']"))
-        )
+        download_link = driver.find_element(By.XPATH, "//a[@title='Descargar Txt']")
         logger.info("Botón de descarga TXT encontrado exitosamente")
         
         # Scroll hacia el link de descarga y hacer clic más humano
