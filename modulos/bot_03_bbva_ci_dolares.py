@@ -390,9 +390,10 @@ def download_txt(driver):
         error_element = driver.find_element(By.XPATH, "//div[@class='msj msj_err']")
         if error_element.is_displayed():
             logger.warning(error_element.text)
-            raise Exception(error_element.text)
+            return False
+            #raise Exception(error_element.text)
     except Exception as e:
-        return False
+        pass
 
     # Verificar si aparece el botón de descarga TXT en 60 segundos
     try:
