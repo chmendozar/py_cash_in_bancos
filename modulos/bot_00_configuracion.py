@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 from config.config import cargar_configuracion
 from utilidades.logger import init_logger
+import shutil
 
 # Configuracion del logger
 logger = logging.getLogger("Bot 00 - Configurador")
@@ -21,18 +22,16 @@ def bot_run():
         if not ruta_input.exists():
             ruta_input.mkdir(parents=True)
         else:
-            pass
-            # Limpiar el directorio ruta_input
-            for archivo in ruta_input.iterdir():
-                try:
-                    if archivo.is_file():
-                        archivo.unlink()
-                    elif archivo.is_dir():
-                        # Si hay subdirectorios, los elimina recursivamente
-                        import shutil
-                        shutil.rmtree(archivo)
-                except Exception as e:
-                    logger.warning(f"No se pudo eliminar {archivo}: {e}")
+            # Eliminar todas las subcarpetas dentro de ruta_input
+            try:
+                for archivo in ruta_input.iterdir():
+                    try:
+                        if archivo.is_dir():
+                            shutil.rmtree(archivo)
+                    except Exception as e:
+                        logger.warning(f"No se pudo eliminar la subcarpeta {archivo}: {e}")
+            except Exception as e:
+                logger.warning(f"No se pudo limpiar las subcarpetas de la carpeta {ruta_input}: {e}")
 
         # Se crea la carpeta de output si no existe
         if not Path(cfg["rutas"]["ruta_output"]).exists():

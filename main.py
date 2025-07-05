@@ -40,7 +40,15 @@ def main():
     inicio = datetime.now()
     
     # Limpieza de ambiente
-    lista_procesos = ["chrome.exe", "firefox.exe"]
+    # Definir lista de procesos a cerrar según el sistema operativo
+    if platform.system() == "Windows":
+        lista_procesos = ["chrome.exe", "chromedriver.exe", "excel.exe"]
+    elif platform.system() == "Darwin":  # macOS
+        lista_procesos = ["Google Chrome", "chromedriver", "Microsoft Excel"]
+    elif platform.system() == "Linux":
+        lista_procesos = ["chrome", "chromedriver", "excel"]
+    else:
+        lista_procesos = []
     Limpieza(lista_procesos)
 
     logger.info(f"==================== INICIO DE ORQUESTACIÓN ====================")

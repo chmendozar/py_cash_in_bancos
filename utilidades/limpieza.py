@@ -6,7 +6,7 @@ logger = logging.getLogger("Utils - Limpieza Ambiente")
 
 def cerrarProcesos(lista_procesos):
     """
-    Cierra los procesos según los nombres proporcionados en la lista.
+    Cierra los procesos según los nombres proporcionados en la lista, forzando el cierre si es necesario.
 
     :param lista_procesos: Lista de nombres de procesos a cerrar (ej. ["chrome.exe", "excel.exe"]).
     """
@@ -23,10 +23,19 @@ def cerrarProcesos(lista_procesos):
                 if nombre_proceso.lower() in [nombre.lower() for nombre in lista_procesos]:
                     pid = proceso.info['pid']
                     proceso_terminado = psutil.Process(pid)
-                    proceso_terminado.terminate()
-                    proceso_terminado.wait()
+                    try:
+                        proceso_terminado.terminate()
+                        try:
+                            proceso_terminado.wait(timeout=5)
+                            logger.info(f"Proceso cerrado (terminate): {nombre_proceso} (PID: {pid})")
+                        except psutil.TimeoutExpired:
+                            logger.warning(f"El proceso {nombre_proceso} (PID: {pid}) no respondió a terminate(). Se intentará kill().")
+                            proceso_terminado.kill()
+                            proceso_terminado.wait(timeout=5)
+                            logger.info(f"Proceso cerrado forzosamente (kill): {nombre_proceso} (PID: {pid})")
+                    except Exception as e:
+                        logger.warning(f"No se pudo cerrar el proceso {nombre_proceso} (PID: {pid}): {e}")
                     procesos_cerrados.append(nombre_proceso)
-                    logger.info(f"Proceso cerrado: {nombre_proceso} (PID: {pid})")
 
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
                 logger.warning(f"No se pudo cerrar el proceso {nombre_proceso}: {e}")
