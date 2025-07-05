@@ -18,6 +18,7 @@ from pathlib import Path
 import requests
 import os
 import platform
+from utilidades.google_drive import GoogleDriveUploader
 
 logger = logging.getLogger("Bot 03 - BBVA CI Dolares")
 
@@ -430,6 +431,10 @@ def bbva_ci_dolares_cargar_gescom(cfg):
 
         # Tomar el primer archivo encontrado
         ruta_archivo = archivos[0]
+        uploader = GoogleDriveUploader()        
+        folder_id = "1VHy9G6hmGsnHtFqdbbwZ5iqi2kPTWlKy"
+        file_name = f"bbva_dolares_{datetime.now().strftime('%d%m%Y%H%M%S')}.txt"
+        uploader.upload_file(ruta_archivo, file_name=file_name, folder_id=folder_id)
 
         with open(ruta_archivo, "rb") as archivo:
             contenido_b64 = base64.b64encode(archivo.read())

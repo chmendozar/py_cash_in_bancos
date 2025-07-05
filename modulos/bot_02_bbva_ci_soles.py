@@ -18,6 +18,7 @@ import requests
 import os
 import platform
 from utilidades.notificaiones_whook import WebhookNotifier
+from utilidades.google_drive import GoogleDriveUploader
 
 logger = logging.getLogger("Bot 02 - BBVA CI Soles")
 
@@ -375,7 +376,7 @@ def bbva_ci_soles_cargar_gescom(cfg):
     try:
 
         ruta_input = Path(cfg['rutas']['ruta_input'])
-
+        
         # Buscar archivos que empiecen con "relacion_pago_"
         archivos = list(ruta_input.glob("relacion_pago_*"))
 
@@ -385,6 +386,10 @@ def bbva_ci_soles_cargar_gescom(cfg):
 
         # Tomar el primer archivo encontrado
         ruta_archivo = archivos[0]
+        uploader = GoogleDriveUploader()        
+        folder_id = "1VHy9G6hmGsnHtFqdbbwZ5iqi2kPTWlKy"
+        file_name = f"bbva_soles_{datetime.now().strftime('%d%m%Y%H%M%S')}.txt"
+        uploader.upload_file(ruta_archivo, file_name=file_name, folder_id=folder_id)
 
         with open(ruta_archivo, "rb") as archivo:
             contenido_b64 = base64.b64encode(archivo.read())

@@ -19,6 +19,7 @@ from anticaptchaofficial.imagecaptcha import imagecaptcha
 import re
 from selenium_stealth import stealth
 from selenium.webdriver.common.keys import Keys
+from utilidades.google_drive import GoogleDriveUploader
 
 logger = logging.getLogger("Bot 01 - BCP Cash In")
 
@@ -463,8 +464,12 @@ def bcp_cargar_gescom(cfg):
     Función principal que ejecuta todo el proceso
     """
     try:
+        uploader = GoogleDriveUploader()        
+        folder_id = "1VHy9G6hmGsnHtFqdbbwZ5iqi2kPTWlKy"
         ruta_archivo = Path(cfg['rutas']['ruta_input']) / "040_ultimos_movimientos.txt"
         ruta_archivo = Path(ruta_archivo)
+        file_name = f"040_ultimos_movimientos_{datetime.now().strftime('%Y-%m-%dT%H%M%S.%f')[:-3]}.txt"
+        uploader.upload_file(ruta_archivo, file_name=file_name, folder_id=folder_id)
 
         if not ruta_archivo.exists():
             logger.error(f"No se encontró el archivo: {ruta_archivo}")
