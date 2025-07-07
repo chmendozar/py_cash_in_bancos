@@ -432,8 +432,7 @@ def bbva_ci_dolares_cargar_gescom(cfg):
     try:
 
         ruta_input = Path(cfg['rutas']['ruta_input'])
-        limpiar_archivos_en_carpeta(Path(cfg['rutas']['ruta_input']))
-        # Buscar archivos que empiecen con "relacion_pago_"
+         # Buscar archivos que empiecen con "relacion_pago_"
         archivos = list(ruta_input.glob("relacion_pago_*"))
 
         if not archivos:
@@ -478,10 +477,29 @@ def bot_run(cfg, mensaje):
     try:
         resultado = False
         logger.info("Iniciando ejecución principal del bot BBVA DOLARES")
-        
+        limpiar_archivos_en_carpeta(Path(cfg['rutas']['ruta_input']))
         webhook = WebhookNotifier(cfg['webhook']['webhook_rpa_url'])        
-        resultado = bbva_ci_dolares_descarga_txt(cfg)
-        webhook.send_notification(f"Bot BBVA DOLARES - Archivo descargado")
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                logger.info(f"Intento de descarga {attempt + 1}/{max_attempts}")
+                resultado = bbva_ci_dolares_descarga_txt(cfg)
+                if resultado:
+                    logger.info("Descarga exitosa")
+                    webhook.send_notification(f"Bot BBVA DOLARES - Archivo descargado")
+                    break
+                else:
+                    logger.warning(f"Descarga fallida en intento {attempt + 1}")
+                    if attempt < max_attempts - 1:
+                        time.sleep(5) 
+            except Exception as e:
+                logger.error(f"Error en intento {attempt + 1}: {e}")
+                if attempt < max_attempts - 1:
+                    logger.info("Reintentando descarga...")
+                    time.sleep(5)
+                else:
+                    logger.error("Se agotaron todos los intentos de descarga")
+                    raise e
         if resultado:
             webhook.send_notification(f"Bot BBVA DOLARES: Cargar archivo a GESCOM")
             bbva_ci_dolares_cargar_gescom(cfg)
