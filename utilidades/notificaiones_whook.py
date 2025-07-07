@@ -1,5 +1,10 @@
 import requests
 import json
+import logging
+
+logger = logging.getLogger("Utils - Webhook Notifier")
+
+
 
 class WebhookNotifier:
     def __init__(self, webhook_url):

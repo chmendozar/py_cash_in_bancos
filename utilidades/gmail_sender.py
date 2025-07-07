@@ -8,6 +8,9 @@ from email.mime.base import MIMEBase
 from email import encoders
 from googleapiclient.errors import HttpError
 from .google_auth import GoogleAuthenticator
+import logging
+
+logger = logging.getLogger("Utils - Gmail Sender")
 
 class GmailSender:
     """
@@ -25,8 +28,10 @@ class GmailSender:
         """
         if authenticator:
             self.authenticator = authenticator
+            logger.info("Usando autenticador proporcionado para GmailSender")
         else:
             self.authenticator = GoogleAuthenticator(service_account_file)
+            logger.info(f"Inicializando GoogleAuthenticator con archivo: {service_account_file}")
         
         self.service = None
         self.user_email = None
@@ -39,13 +44,16 @@ class GmailSender:
         try:
             # Autenticar solo con Gmail si no está ya autenticado
             if not self.authenticator.is_authenticated():
+                logger.info("Autenticando con alcance 'gmail'")
                 self.authenticator.authenticate(['gmail'])
             
             self.service = self.authenticator.get_gmail_service()
+            logger.info("Servicio de Gmail inicializado correctamente")
             
             # Obtener información del usuario
             profile = self.service.users().getProfile(userId='me').execute()
             self.user_email = profile.get('emailAddress')
+            logger.info(f"Gmail inicializado para: {self.user_email}")
             
             # Mostrar información del tipo de autenticación
             auth_info = self.authenticator.get_auth_info()
@@ -53,8 +61,10 @@ class GmailSender:
             print(f"Tipo de autenticación: {auth_info['tipo']}")
             if auth_info['sin_vencimiento']:
                 print("✅ Credenciales sin vencimiento")
+                logger.info("Credenciales sin vencimiento")
             
         except Exception as e:
+            logger.error(f"Error al inicializar Gmail: {e}")
             print(f"Error al inicializar Gmail: {e}")
             raise
     
@@ -74,6 +84,7 @@ class GmailSender:
         Returns:
             dict: Mensaje codificado en base64
         """
+        logger.debug(f"Creando mensaje para: {to}, asunto: {subject}, adjuntos: {attachments}")
         # Crear mensaje
         message = MIMEMultipart()
         
@@ -110,11 +121,13 @@ class GmailSender:
                 if os.path.exists(file_path):
                     self._add_attachment(message, file_path)
                 else:
+                    logger.warning(f"Archivo adjunto no encontrado: {file_path}")
                     print(f"Advertencia: Archivo no encontrado: {file_path}")
         
         # Codificar mensaje
         raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
         
+        logger.debug("Mensaje creado y codificado en base64")
         return {'raw': raw_message}
     
     def _add_attachment(self, message, file_path):
@@ -151,9 +164,11 @@ class GmailSender:
             )
             
             message.attach(attachment)
+            logger.info(f"Adjunto agregado: {filename}")
             print(f"Adjunto agregado: {filename}")
             
         except Exception as e:
+            logger.error(f"Error al agregar adjunto {file_path}: {e}")
             print(f"Error al agregar adjunto {file_path}: {e}")
     
     def send_message(self, to, subject, body, cc=None, bcc=None, attachments=None, body_type='plain'):
@@ -185,6 +200,7 @@ class GmailSender:
             )
             
             # Enviar mensaje
+            logger.info(f"Enviando email a: {to} | Asunto: {subject}")
             print(f"Enviando email a: {to}")
             print(f"Asunto: {subject}")
             
@@ -193,13 +209,16 @@ class GmailSender:
                 body=message
             ).execute()
             
+            logger.info(f"Email enviado exitosamente. ID: {result['id']}")
             print(f"Email enviado exitosamente. ID: {result['id']}")
             return result
             
         except HttpError as error:
+            logger.error(f"Error al enviar email: {error}")
             print(f"Error al enviar email: {error}")
             raise
         except Exception as e:
+            logger.error(f"Error inesperado al enviar email: {e}")
             print(f"Error inesperado al enviar email: {e}")
             raise
     
@@ -218,6 +237,7 @@ class GmailSender:
         Returns:
             dict: Información del mensaje enviado
         """
+        logger.debug(f"Enviando email HTML a: {to} | Asunto: {subject}")
         return self.send_message(
             to=to,
             subject=subject,
@@ -298,7 +318,7 @@ class GmailSender:
             content=template_data.get('content', ''),
             footer=template_data.get('footer', 'Enviado automáticamente')
         )
-        
+        logger.debug(f"Enviando email con template a: {to} | Asunto: {subject}")
         return self.send_html_email(
             to=to,
             subject=subject,
@@ -324,6 +344,7 @@ class GmailSender:
         
         for email_data in email_list:
             try:
+                logger.info(f"Enviando email múltiple a: {email_data['to']} | Asunto: {email_data['subject']}")
                 result = self.send_message(
                     to=email_data['to'],
                     subject=email_data['subject'],
@@ -339,12 +360,14 @@ class GmailSender:
                     'message_id': result['id']
                 })
             except Exception as e:
+                logger.error(f"Error al enviar email a {email_data['to']}: {e}")
                 results.append({
                     'status': 'error',
                     'to': email_data['to'],
                     'error': str(e)
                 })
         
+        logger.info(f"Envío múltiple completado. Total: {len(results)}")
         return results
     
     def get_user_info(self):
@@ -356,6 +379,7 @@ class GmailSender:
         """
         try:
             profile = self.service.users().getProfile(userId='me').execute()
+            logger.info(f"Información de usuario obtenida para: {profile.get('emailAddress')}")
             return {
                 'email': profile.get('emailAddress'),
                 'messages_total': profile.get('messagesTotal'),
@@ -363,5 +387,6 @@ class GmailSender:
                 'history_id': profile.get('historyId')
             }
         except HttpError as error:
+            logger.error(f"Error al obtener información del usuario: {error}")
             print(f"Error al obtener información del usuario: {error}")
             return None 

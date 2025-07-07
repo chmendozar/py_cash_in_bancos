@@ -1,7 +1,5 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common import action_chains
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
@@ -19,17 +17,20 @@ import os
 import platform
 from utilidades.notificaiones_whook import WebhookNotifier
 from utilidades.google_drive import GoogleDriveUploader
+from utilidades.limpieza import limpiar_archivos_en_carpeta
 
 logger = logging.getLogger("Bot 02 - BBVA CI Soles")
 
 #Función para imprimir la información de un elemento de html
 def print_element_info(elemento):
+    logger.debug("Ejecutando print_element_info")
     children = elemento.find_elements(By.CSS_SELECTOR, "*")
     # Imprimir tag y clase
     for child in children:
         print(child.tag_name, "-", child.get_attribute("class"))
 
 def create_stealth_webdriver(cfg):
+    logger.info("Creando instancia de Chrome WebDriver con stealth.")
     """
     Crea un driver de Chrome configurado para descargar archivos en la ruta indicada en cfg['rutas']['ruta_input']
     """
@@ -76,6 +77,7 @@ def create_stealth_webdriver(cfg):
     # Set longer timeout for ChromeDriver installation
     os.environ['PYDEVD_WARN_EVALUATION_TIMEOUT'] = '30'  # 30 seconds timeout
     os.environ['PYDEVD_UNBLOCK_THREADS_TIMEOUT'] = '30'  # Unblock threads after 30 seconds
+    logger.info("Instalando ChromeDriver y lanzando navegador.")
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
     # Ejecutar scripts anti-detección adicionales
@@ -93,6 +95,7 @@ def create_stealth_webdriver(cfg):
         fix_hairline=True,
     )
 
+    logger.info("WebDriver creado y configurado con stealth.")
     return driver
 
 def bbva_ci_soles_descarga_txt(cfg):
@@ -214,6 +217,7 @@ def login(driver):
         raise e
 
 def select_charges(driver):
+    logger.info("Seleccionando menú de cobros en la interfaz BBVA.")
     wait = WebDriverWait(driver, 15)
     time.sleep(5)
     app_template_host = driver.find_element(By.CSS_SELECTOR, "bbva-btge-app-template")
@@ -228,9 +232,10 @@ def select_charges(driver):
     )
     charges_menu_item.click()
     time.sleep(3)
+    logger.info("Menú de cobros seleccionado.")
 
 def select_paid_collection(driver):
-    
+    logger.info("Seleccionando opción 'Recaudos pagados'.")
     # Step 1: locate the main shadow host
     main_shadow_host = driver.find_element(By.CSS_SELECTOR, "bbva-btge-menurization-landing-solution-page")
     main_shadow_root = driver.execute_script("return arguments[0].shadowRoot", main_shadow_host)
@@ -253,12 +258,15 @@ def select_paid_collection(driver):
         # Step 5: look for 'Recaudos pagados' link and click it
         if link_text == "Recaudos pagados":
             print("Found 'Recaudos pagados', clicking the link.")
+            logger.info("Encontrado enlace 'Recaudos pagados', haciendo clic.")
             link_element.click()
             break
     # Step 6: esperar que la siguiente página se cargue
     time.sleep(5)
+    logger.info("Opción 'Recaudos pagados' seleccionada.")
 
 def download_txt(driver):
+    logger.info("Iniciando proceso de descarga de archivo TXT.")
     time.sleep(5)
 
     # Step 0: return to main DOM
@@ -281,6 +289,7 @@ def download_txt(driver):
 
     # Optional: log when inside iframe
     print("Inside iframe#bbvaIframe")
+    logger.debug("Dentro del iframe #bbvaIframe.")
 
     # Step 4: wait for iframe#kyop-central-load-area and switch to it
     wait = WebDriverWait(driver, 10)
@@ -288,11 +297,13 @@ def download_txt(driver):
     driver.switch_to.frame(kyop_iframe_element)
 
     print("Inside iframe#kyop-central-load-area")
+    logger.debug("Dentro del iframe #kyop-central-load-area.")
     time.sleep(10)
 
     # Step 5: esperar y hacer clic en el enlace de cuenta deseado
     soles_account_link = driver.find_element(By.XPATH, "//a[contains(@href, 'LIGO- LA MAGICA SOLES')]")
     soles_account_link.click()
+    logger.info("Enlace de cuenta SOLES seleccionado.")
     time.sleep(5)
     
     # Esperar que el campo de fecha inicial esté presente y clickeable
@@ -360,6 +371,7 @@ def download_txt(driver):
         driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", download_link)
         time.sleep(2)
         ActionChains(driver).move_to_element(download_link).click().perform()
+        logger.info("Archivo TXT descargado exitosamente.")
         time.sleep(10)
         
     except Exception as e:
@@ -374,7 +386,7 @@ def bbva_ci_soles_cargar_gescom(cfg):
     Función principal que ejecuta todo el proceso
     """
     try:
-
+        logger.info("Iniciando carga de archivo a GESCOM.")
         ruta_input = Path(cfg['rutas']['ruta_input'])
         
         # Buscar archivos que empiecen con "relacion_pago_"
@@ -390,6 +402,7 @@ def bbva_ci_soles_cargar_gescom(cfg):
         folder_id = "1VHy9G6hmGsnHtFqdbbwZ5iqi2kPTWlKy"
         file_name = f"bbva_soles_{datetime.now().strftime('%d%m%Y%H%M%S')}.txt"
         uploader.upload_file(ruta_archivo, file_name=file_name, folder_id=folder_id)
+        logger.info(f"Archivo {file_name} subido a Google Drive.")
 
         with open(ruta_archivo, "rb") as archivo:
             contenido_b64 = base64.b64encode(archivo.read())
@@ -417,8 +430,10 @@ def bbva_ci_soles_cargar_gescom(cfg):
         return False, f"Excepción al cargar archivo a GESCOM: {e}"
   
 def bot_run(cfg, mensaje):
+    logger.info("Iniciando ejecución de bot_run para BBVA SOLES.")
     try:
-        resultado = False
+        resultado = False   
+        limpiar_archivos_en_carpeta(Path(cfg['rutas']['ruta_input']))
         logger.info("Iniciando ejecución principal del bot BBVA SOLES")
         webhook = WebhookNotifier(cfg['webhook']['webhook_rpa_url'])        
         max_attempts = 3

@@ -1,5 +1,6 @@
 import psutil
 import logging
+import os
 
 # Configuración del logger
 logger = logging.getLogger("Utils - Limpieza Ambiente")
@@ -49,3 +50,47 @@ def cerrarProcesos(lista_procesos):
         logger.error(f"Error en cerrarProcesos: {e}")
     finally:
         logger.info("Fin del proceso ...")
+        
+        # Limpieza de archivos en una carpeta de manera recursiva
+def limpiar_archivos_en_carpeta(ruta_carpeta, extensiones=None):
+    """
+    Elimina archivos en la carpeta especificada y en todas sus subcarpetas de manera recursiva.
+    Si se especifica una lista de extensiones, solo elimina archivos con esas extensiones.
+    :param ruta_carpeta: Ruta de la carpeta a limpiar.
+    :param extensiones: Lista de extensiones a eliminar (ej. [".txt", ".csv"]). Si es None, elimina todos los archivos.
+    """
+    archivos_eliminados = []
+    carpetas_vacias = []
+    for root, dirs, files in os.walk(ruta_carpeta, topdown=False):
+        for nombre_archivo in files:
+            ruta_archivo = os.path.join(root, nombre_archivo)
+            if extensiones:
+                if any(nombre_archivo.lower().endswith(ext.lower()) for ext in extensiones):
+                    try:
+                        os.remove(ruta_archivo)
+                        archivos_eliminados.append(ruta_archivo)
+                        logger.info(f"Archivo eliminado: {ruta_archivo}")
+                    except Exception as e:
+                        logger.warning(f"No se pudo eliminar el archivo {ruta_archivo}: {e}")
+            else:
+                try:
+                    os.remove(ruta_archivo)
+                    archivos_eliminados.append(ruta_archivo)
+                    logger.info(f"Archivo eliminado: {ruta_archivo}")
+                except Exception as e:
+                    logger.warning(f"No se pudo eliminar el archivo {ruta_archivo}: {e}")
+        # Intentar eliminar carpetas vacías
+        for nombre_carpeta in dirs:
+            ruta_subcarpeta = os.path.join(root, nombre_carpeta)
+            try:
+                if not os.listdir(ruta_subcarpeta):
+                    os.rmdir(ruta_subcarpeta)
+                    carpetas_vacias.append(ruta_subcarpeta)
+                    logger.info(f"Carpeta vacía eliminada: {ruta_subcarpeta}")
+            except Exception as e:
+                logger.warning(f"No se pudo eliminar la carpeta {ruta_subcarpeta}: {e}")
+    if not archivos_eliminados:
+        logger.info("No se eliminaron archivos.")
+    if carpetas_vacias:
+        logger.info(f"Carpetas vacías eliminadas: {', '.join(carpetas_vacias)}")
+    return archivos_eliminados

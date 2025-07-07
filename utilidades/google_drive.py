@@ -1,8 +1,11 @@
 import os
 import mimetypes
+import logging
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 from .google_auth import GoogleAuthenticator
+
+logger = logging.getLogger("Utils - Google Drive")
 
 class GoogleDriveUploader:
     """
@@ -18,6 +21,7 @@ class GoogleDriveUploader:
             authenticator (GoogleAuthenticator): Autenticador ya configurado (recomendado)
             service_account_file (str): Ruta al archivo de Service Account JSON
         """
+        logger.info("Inicializando GoogleDriveUploader")
         if authenticator:
             self.authenticator = authenticator
         else:
@@ -31,16 +35,20 @@ class GoogleDriveUploader:
         Inicializa el servicio de Google Drive
         """
         try:
+            logger.info("Inicializando servicio de Google Drive")
             # Autenticar solo con Drive si no está ya autenticado
             if not self.authenticator.credentials:
+                logger.info("Autenticando con alcance 'drive'")
                 self.authenticator.authenticate(['drive'])
             
             self.service = self.authenticator.get_drive_service()
             
             print("Google Drive inicializado exitosamente")
             print("Credenciales sin vencimiento")
+            logger.info("Google Drive inicializado exitosamente y credenciales sin vencimiento")
                 
         except Exception as e:
+            logger.error(f"Error al inicializar Google Drive: {e}")
             print(f"Error al inicializar Google Drive: {e}")
             raise
     
@@ -58,7 +66,9 @@ class GoogleDriveUploader:
         Returns:
             dict: Información del archivo subido
         """
+        logger.info(f"Preparando para subir archivo: {file_path}")
         if not os.path.exists(file_path):
+            logger.error(f"El archivo {file_path} no existe")
             raise FileNotFoundError(f"El archivo {file_path} no existe")
         
         if not file_name:
@@ -83,13 +93,16 @@ class GoogleDriveUploader:
                 # Verificar que la carpeta existe
                 folder = self.service.files().get(fileId=folder_id).execute()
                 file_metadata['parents'] = [folder_id]
+                logger.info(f"Subiendo a carpeta: {folder.get('name')} ({folder_id})")
                 print(f"Subiendo a carpeta: {folder.get('name')} ({folder_id})")
             except HttpError as error:
                 if error.resp.status == 404:
+                    logger.warning(f"Carpeta no encontrada (ID: {folder_id}), subiendo a la raíz")
                     print(f"Carpeta no encontrada (ID: {folder_id})")
                     print("Subiendo a la carpeta raíz de Drive")
                     folder_id = None
                 else:
+                    logger.error(f"Error al verificar carpeta: {error}")
                     print(f"Error al verificar carpeta: {error}")
                     raise
         
@@ -99,6 +112,7 @@ class GoogleDriveUploader:
         try:
             # Subir el archivo
             file_size = os.path.getsize(file_path)
+            logger.info(f"Subiendo: {file_name} ({file_size:,} bytes)")
             print(f"Subiendo: {file_name} ({file_size:,} bytes)")
             
             file = self.service.files().create(
@@ -107,6 +121,7 @@ class GoogleDriveUploader:
                 fields='id,name,size,mimeType,createdTime,webViewLink'
             ).execute()
             
+            logger.info(f"Archivo subido exitosamente: {file.get('name')} (ID: {file.get('id')})")
             print(f"Archivo subido exitosamente:")
             print(f"   Nombre: {file.get('name')}")
             print(f"   ID: {file.get('id')}")
@@ -115,11 +130,13 @@ class GoogleDriveUploader:
             
             # Hacer público si se solicita
             if make_public:
+                logger.info(f"Haciendo público el archivo ID: {file.get('id')}")
                 self.make_file_public(file.get('id'))
             
             return file
             
         except HttpError as error:
+            logger.error(f"Error al subir archivo: {error}")
             print(f"Error al subir archivo: {error}")
             if 'insufficient permissions' in str(error).lower():
                 print("Tip: Asegúrate de compartir la carpeta con la Service Account")
@@ -133,6 +150,7 @@ class GoogleDriveUploader:
             file_id (str): ID del archivo
         """
         try:
+            logger.info(f"Configurando archivo como público: {file_id}")
             permission = {
                 'type': 'anyone',
                 'role': 'reader'
@@ -144,8 +162,10 @@ class GoogleDriveUploader:
             ).execute()
             
             print("Archivo configurado como público")
+            logger.info(f"Archivo {file_id} configurado como público")
             
         except HttpError as error:
+            logger.error(f"Error al hacer archivo público: {error}")
             print(f"Error al hacer archivo público: {error}")
     
     def create_folder(self, folder_name, parent_folder_id=None):
@@ -159,6 +179,7 @@ class GoogleDriveUploader:
         Returns:
             str: ID de la carpeta creada
         """
+        logger.info(f"Creando carpeta: {folder_name} (Padre: {parent_folder_id})")
         file_metadata = {
             'name': folder_name,
             'mimeType': 'application/vnd.google-apps.folder'
@@ -170,20 +191,25 @@ class GoogleDriveUploader:
                 # Verificar que la carpeta padre existe
                 parent_folder = self.service.files().get(fileId=parent_folder_id).execute()
                 file_metadata['parents'] = [parent_folder_id]
+                logger.info(f"Creando carpeta '{folder_name}' en: {parent_folder.get('name')}")
                 print(f"Creando carpeta '{folder_name}' en: {parent_folder.get('name')}")
             except HttpError as error:
                 if error.resp.status == 404:
-                    print(f"⚠️  Carpeta padre no encontrada (ID: {parent_folder_id})")
-                    print("📁 Creando carpeta en la raíz de Drive")
+                    logger.warning(f"Carpeta padre no encontrada (ID: {parent_folder_id}), creando en raíz")
+                    print(f"Carpeta padre no encontrada (ID: {parent_folder_id})")
+                    print("Creando carpeta en la raíz de Drive")
                 elif error.resp.status == 403:
-                    print(f"❌ Sin permisos para acceder a carpeta padre (ID: {parent_folder_id})")
-                    print("📁 Creando carpeta en la raíz de Drive")
+                    logger.warning(f"Sin permisos para acceder a carpeta padre (ID: {parent_folder_id}), creando en raíz")
+                    print(f"Sin permisos para acceder a carpeta padre (ID: {parent_folder_id})")
+                    print("Creando carpeta en la raíz de Drive")
                 else:
-                    print(f"❌ Error al verificar carpeta padre: {error}")
-                    print("📁 Creando carpeta en la raíz de Drive")
+                    logger.error(f"Error al verificar carpeta padre: {error}")
+                    print(f"Error al verificar carpeta padre: {error}")
+                    print("Creando carpeta en la raíz de Drive")
             except Exception as e:
-                print(f"❌ Error inesperado al verificar carpeta padre: {e}")
-                print("📁 Creando carpeta en la raíz de Drive")
+                logger.error(f"Error inesperado al verificar carpeta padre: {e}")
+                print(f"Error inesperado al verificar carpeta padre: {e}")
+                print("Creando carpeta en la raíz de Drive")
         
         try:
             file = self.service.files().create(
@@ -192,16 +218,18 @@ class GoogleDriveUploader:
             ).execute()
             
             folder_id = file.get('id')
-            print(f"✅ Carpeta creada: {file.get('name')}")
-            print(f"   📋 ID: {folder_id}")
-            print(f"   🔗 Enlace: {file.get('webViewLink')}")
+            logger.info(f"Carpeta creada: {file.get('name')} (ID: {folder_id})")
+            print(f"Carpeta creada: {file.get('name')}")
+            print(f"   ID: {folder_id}")
+            print(f"   Enlace: {file.get('webViewLink')}")
             
             return folder_id
             
         except HttpError as error:
-            print(f"❌ Error al crear carpeta: {error}")
+            logger.error(f"Error al crear carpeta: {error}")
+            print(f"Error al crear carpeta: {error}")
             if error.resp.status == 403:
-                print("💡 Tip: Asegúrate de que la Service Account tenga permisos de escritura")
+                print("Tip: Asegúrate de que la Service Account tenga permisos de escritura")
             raise
     
     def find_folder_by_name(self, folder_name, parent_folder_id=None):
@@ -215,29 +243,35 @@ class GoogleDriveUploader:
         Returns:
             str: ID de la carpeta encontrada o None si no existe
         """
+        logger.info(f"Buscando carpeta por nombre: {folder_name} (Padre: {parent_folder_id})")
         try:
             # Verificar carpeta padre si se especifica
             if parent_folder_id:
                 try:
                     # Verificar que la carpeta padre existe
                     parent_folder = self.service.files().get(fileId=parent_folder_id).execute()
+                    logger.info(f"Buscando '{folder_name}' en: {parent_folder.get('name')}")
                     print(f"Buscando '{folder_name}' en: {parent_folder.get('name')}")
                 except HttpError as error:
                     if error.resp.status == 404:
-                        print(f"⚠️  Carpeta padre no encontrada (ID: {parent_folder_id})")
-                        print("🔍 Buscando en toda la unidad de Drive")
+                        logger.warning(f"Carpeta padre no encontrada (ID: {parent_folder_id}), buscando en toda la unidad")
+                        print(f"Carpeta padre no encontrada (ID: {parent_folder_id})")
+                        print("Buscando en toda la unidad de Drive")
                         parent_folder_id = None
                     elif error.resp.status == 403:
-                        print(f"❌ Sin permisos para acceder a carpeta padre (ID: {parent_folder_id})")
-                        print("🔍 Buscando en toda la unidad de Drive")
+                        logger.warning(f"Sin permisos para acceder a carpeta padre (ID: {parent_folder_id}), buscando en toda la unidad")
+                        print(f"Sin permisos para acceder a carpeta padre (ID: {parent_folder_id})")
+                        print("Buscando en toda la unidad de Drive")
                         parent_folder_id = None
                     else:
-                        print(f"❌ Error al verificar carpeta padre: {error}")
-                        print("🔍 Buscando en toda la unidad de Drive")
+                        logger.error(f"Error al verificar carpeta padre: {error}")
+                        print(f"Error al verificar carpeta padre: {error}")
+                        print("Buscando en toda la unidad de Drive")
                         parent_folder_id = None
                 except Exception as e:
-                    print(f"❌ Error inesperado al verificar carpeta padre: {e}")
-                    print("🔍 Buscando en toda la unidad de Drive")
+                    logger.error(f"Error inesperado al verificar carpeta padre: {e}")
+                    print(f"Error inesperado al verificar carpeta padre: {e}")
+                    print("Buscando en toda la unidad de Drive")
                     parent_folder_id = None
             
             # Construir query
@@ -254,16 +288,19 @@ class GoogleDriveUploader:
             
             if files:
                 folder_id = files[0]['id']
-                print(f"✅ Carpeta encontrada: {folder_name} (ID: {folder_id})")
+                logger.info(f"Carpeta encontrada: {folder_name} (ID: {folder_id})")
+                print(f"Carpeta encontrada: {folder_name} (ID: {folder_id})")
                 return folder_id
             else:
-                print(f"❌ Carpeta no encontrada: {folder_name}")
+                logger.info(f"Carpeta no encontrada: {folder_name}")
+                print(f"Carpeta no encontrada: {folder_name}")
                 return None
                 
         except HttpError as error:
-            print(f"❌ Error al buscar carpeta: {error}")
+            logger.error(f"Error al buscar carpeta: {error}")
+            print(f"Error al buscar carpeta: {error}")
             if error.resp.status == 403:
-                print("💡 Tip: Asegúrate de que la Service Account tenga permisos de lectura")
+                print("Tip: Asegúrate de que la Service Account tenga permisos de lectura")
             return None
     
     def get_or_create_folder(self, folder_name, parent_folder_id=None):
@@ -277,13 +314,16 @@ class GoogleDriveUploader:
         Returns:
             str: ID de la carpeta
         """
+        logger.info(f"Obteniendo o creando carpeta: {folder_name} (Padre: {parent_folder_id})")
         # Buscar carpeta existente
         folder_id = self.find_folder_by_name(folder_name, parent_folder_id)
         
         if folder_id:
+            logger.info(f"Carpeta ya existe: {folder_id}")
             return folder_id
         
         # Crear carpeta si no existe
+        logger.info(f"Creando nueva carpeta: {folder_name}")
         print(f"Creando nueva carpeta: {folder_name}")
         return self.create_folder(folder_name, parent_folder_id)
     
@@ -300,11 +340,13 @@ class GoogleDriveUploader:
         Returns:
             dict: Información del archivo subido
         """
+        logger.info(f"Subiendo archivo {file_path} a carpeta {folder_name} (create_if_not_exists={create_if_not_exists})")
         if create_if_not_exists:
             folder_id = self.get_or_create_folder(folder_name)
         else:
             folder_id = self.find_folder_by_name(folder_name)
             if not folder_id:
+                logger.error(f"Carpeta no encontrada: {folder_name}")
                 raise FileNotFoundError(f"Carpeta no encontrada: {folder_name}")
         
         return self.upload_file(file_path, file_name, folder_id)
@@ -321,6 +363,7 @@ class GoogleDriveUploader:
         Returns:
             list: Lista de información de archivos subidos
         """
+        logger.info(f"Subiendo múltiples archivos: {file_paths} a carpeta {folder_id}")
         uploaded_files = []
         total_files = len(file_paths)
         
@@ -328,6 +371,7 @@ class GoogleDriveUploader:
         
         for i, file_path in enumerate(file_paths, 1):
             try:
+                logger.info(f"[{i}/{total_files}] Procesando: {os.path.basename(file_path)}")
                 print(f"\n[{i}/{total_files}] Procesando: {os.path.basename(file_path)}")
                 
                 file_info = self.upload_file(file_path, folder_id=folder_id)
@@ -337,8 +381,10 @@ class GoogleDriveUploader:
                     progress_callback(i, total_files, file_info)
                     
             except Exception as e:
+                logger.error(f"Error al subir {file_path}: {e}")
                 print(f"Error al subir {file_path}: {e}")
         
+        logger.info(f"Subida completada: {len(uploaded_files)}/{total_files} archivos exitosos")
         print(f"\nSubida completada: {len(uploaded_files)}/{total_files} archivos exitosos")
         return uploaded_files
     
@@ -356,9 +402,11 @@ class GoogleDriveUploader:
         """
         from pathlib import Path
         
+        logger.info(f"Subiendo estructura de carpeta: {local_folder_path} a Drive (nombre en Drive: {drive_folder_name}, padre: {parent_folder_id})")
         local_path = Path(local_folder_path)
         
         if not local_path.exists() or not local_path.is_dir():
+            logger.error(f"La carpeta {local_folder_path} no existe")
             raise ValueError(f"La carpeta {local_folder_path} no existe")
         
         if not drive_folder_name:
@@ -388,6 +436,7 @@ class GoogleDriveUploader:
                         folder_key = str(local_path / relative_parent.parents[len(parent_parts)-1-parent_parts[::-1].index(part)])
                         
                         if folder_key not in created_folders:
+                            logger.info(f"Creando subcarpeta: {part} en {current_parent_id}")
                             current_parent_id = self.create_folder(part, current_parent_id)
                             created_folders[folder_key] = current_parent_id
                         else:
@@ -397,9 +446,11 @@ class GoogleDriveUploader:
                 
                 # Subir archivo
                 try:
+                    logger.info(f"Subiendo archivo: {item_path} a carpeta {target_folder_id}")
                     file_info = self.upload_file(str(item_path), folder_id=target_folder_id)
                     uploaded_files.append(file_info)
                 except Exception as e:
+                    logger.error(f"Error al subir {item_path}: {e}")
                     print(f"Error al subir {item_path}: {e}")
         
         result = {
@@ -409,6 +460,7 @@ class GoogleDriveUploader:
             'created_folders': len(created_folders)
         }
         
+        logger.info(f"Estructura subida: {len(uploaded_files)} archivos, {len(created_folders)} carpetas")
         print(f"Estructura subida: {len(uploaded_files)} archivos, {len(created_folders)} carpetas")
         return result
     
@@ -419,6 +471,7 @@ class GoogleDriveUploader:
         Returns:
             GoogleAuthenticator: Objeto authenticator
         """
+        logger.info("Obteniendo objeto authenticator")
         return self.authenticator
     
     def verify_folder_access(self, folder_id, verbose=True):
@@ -432,6 +485,7 @@ class GoogleDriveUploader:
         Returns:
             dict: Información sobre el acceso a la carpeta
         """
+        logger.info(f"Verificando acceso a carpeta: {folder_id}")
         result = {
             'exists': False,
             'accessible': False,
@@ -447,33 +501,38 @@ class GoogleDriveUploader:
             result['name'] = folder.get('name')
             
             if verbose:
-                print(f"✅ Carpeta accesible:")
-                print(f"   📋 ID: {folder_id}")
-                print(f"   📁 Nombre: {folder.get('name')}")
-                print(f"   🔗 Enlace: {folder.get('webViewLink', 'N/A')}")
+                logger.info(f"Carpeta accesible: {folder_id} ({folder.get('name')})")
+                print(f"Carpeta accesible:")
+                print(f"   ID: {folder_id}")
+                print(f"   Nombre: {folder.get('name')}")
+                print(f"   Enlace: {folder.get('webViewLink', 'N/A')}") 
                 
         except HttpError as error:
             result['error'] = str(error)
             if error.resp.status == 404:
                 result['exists'] = False
+                logger.warning(f"Carpeta no encontrada (ID: {folder_id})")
                 if verbose:
-                    print(f"❌ Carpeta no encontrada (ID: {folder_id})")
-                    print("💡 Posibles causas:")
+                    print(f"Carpeta no encontrada (ID: {folder_id})")
+                    print(" + Posibles causas:")
                     print("   - La carpeta fue eliminada")
                     print("   - El ID de carpeta es incorrecto")
             elif error.resp.status == 403:
                 result['exists'] = True  # Existe pero no tenemos permisos
                 result['accessible'] = False
+                logger.warning(f"Sin permisos para acceder a carpeta (ID: {folder_id})")
                 if verbose:
-                    print(f"❌ Sin permisos para acceder a carpeta (ID: {folder_id})")
-                    print("💡 Posibles soluciones:")
+                    print(f"Sin permisos para acceder a carpeta (ID: {folder_id})")
+                    print(" + Posibles soluciones:")
                     print("   - Compartir la carpeta con la Service Account")
                     print("   - Verificar los permisos de la Service Account")
             else:
+                logger.error(f"Error al verificar carpeta: {error}")
                 if verbose:
                     print(f"❌ Error al verificar carpeta: {error}")
         except Exception as e:
             result['error'] = str(e)
+            logger.error(f"Error inesperado al verificar carpeta: {e}")
             if verbose:
                 print(f"❌ Error inesperado: {e}")
         
@@ -491,6 +550,7 @@ class GoogleDriveUploader:
         Returns:
             list: Lista de archivos
         """
+        logger.info(f"Listando archivos en carpeta: {folder_id} (max_results={max_results})")
         try:
             query = ""
             if folder_id:
@@ -506,9 +566,11 @@ class GoogleDriveUploader:
             files = results.get('files', [])
             
             if not files:
+                logger.info("No se encontraron archivos")
                 print("No se encontraron archivos")
                 return []
             
+            logger.info(f"Archivos encontrados ({len(files)}):")
             print(f"Archivos encontrados ({len(files)}):")
             
             if show_details:
@@ -518,6 +580,7 @@ class GoogleDriveUploader:
                         size = f"{int(size):,} bytes"
                     
                     file_type = "Carpeta" if file.get('mimeType') == 'application/vnd.google-apps.folder' else "Archivo"
+                    logger.info(f"{file_type} {file['name']} (ID: {file['id']}) Tamaño: {size}")
                     print(f"   {file_type} {file['name']}")
                     print(f"       ID: {file['id']}")
                     print(f"       Tamaño: {size}")
@@ -525,10 +588,12 @@ class GoogleDriveUploader:
             else:
                 for file in files:
                     file_type = "Carpeta" if file.get('mimeType') == 'application/vnd.google-apps.folder' else "Archivo"
+                    logger.info(f"{file_type} {file['name']} (ID: {file['id']})")
                     print(f"   {file_type} {file['name']} (ID: {file['id']})")
             
             return files
             
         except HttpError as error:
+            logger.error(f"Error al listar archivos: {error}")
             print(f"Error al listar archivos: {error}")
             raise

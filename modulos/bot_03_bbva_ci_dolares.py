@@ -19,17 +19,21 @@ import requests
 import os
 import platform
 from utilidades.google_drive import GoogleDriveUploader
+from utilidades.limpieza import limpiar_archivos_en_carpeta
 
 logger = logging.getLogger("Bot 03 - BBVA CI Dolares")
+MAX_ATTEMPTS_FLOW = 3
 
 #Función para imprimir la información de un elemento de html
 def print_element_info(elemento):
+    logger.debug("Ejecutando print_element_info")
     children = elemento.find_elements(By.CSS_SELECTOR, "*")
     # Imprimir tag y clase
     for child in children:
         print(child.tag_name, "-", child.get_attribute("class"))
 
 def create_stealth_webdriver(cfg):
+    logger.info("Creando webdriver con stealth")
     """
     Crea un driver de Chrome configurado para descargar archivos en la ruta indicada en cfg['rutas']['ruta_input']
     """
@@ -93,10 +97,12 @@ def create_stealth_webdriver(cfg):
         fix_hairline=True,
     )
 
+    logger.info("Webdriver creado correctamente")
     return driver
 
 
 def bbva_ci_dolares_descarga_txt(cfg):
+    logger.info("Entrando a bbva_ci_dolares_descarga_txt")
     """
     Función principal que ejecuta todo el proceso de descarga de movimientos BBVA DOLARES
     """
@@ -106,6 +112,7 @@ def bbva_ci_dolares_descarga_txt(cfg):
         driver = create_stealth_webdriver(cfg)
 
         def retry_login(max_attempts=2):
+            logger.info("Entrando a retry_login")
             for attempt in range(max_attempts):
                 try:
                     logger.info(f"Intento de login {attempt + 1}/{max_attempts}")
@@ -160,6 +167,7 @@ def bbva_ci_dolares_descarga_txt(cfg):
 
 
 def login(driver):
+    logger.info("Entrando a login")
     """
     Realiza el proceso de login en BBVA Netcash. Si falla, lanza una excepción.
     """
@@ -216,7 +224,7 @@ def login(driver):
         raise e
 
 def select_charges(driver):
-    
+    logger.info("Entrando a select_charges")
     time.sleep(5)
     app_template_host = driver.find_element(By.CSS_SELECTOR, "bbva-btge-app-template")
     app_template_shadow_root = driver.execute_script("return arguments[0].shadowRoot", app_template_host)
@@ -232,7 +240,7 @@ def select_charges(driver):
     time.sleep(3)
 
 def select_paid_collection(driver):
-    
+    logger.info("Entrando a select_paid_collection")
     # Step 1: esperar que el shadow host principal esté presente
     main_shadow_host = driver.find_element(By.CSS_SELECTOR, "bbva-btge-menurization-landing-solution-page")
     main_shadow_root = driver.execute_script("return arguments[0].shadowRoot", main_shadow_host)
@@ -284,6 +292,7 @@ def select_paid_collection(driver):
     time.sleep(5)
 
 def download_txt(driver):
+    logger.info("Entrando a download_txt")
     time.sleep(5)
 
     driver.switch_to.default_content()
@@ -359,6 +368,7 @@ def download_txt(driver):
     time.sleep(3)
 
     def click_consultar():
+        logger.info("Entrando a click_consultar")
         try:
             logger.info("Esperando el botón 'Consultar'...")
 
@@ -412,16 +422,17 @@ def download_txt(driver):
         # Si no aparece el botón de descarga, lanzar excepción para reiniciar desde cobros
         raise Exception("Botón de descarga TXT no encontrado - se requiere reinicio desde selección de cobros")
 
-MAX_ATTEMPTS_FLOW = 3
+
 
 def bbva_ci_dolares_cargar_gescom(cfg):
+    logger.info("Entrando a bbva_ci_dolares_cargar_gescom")
     """
     Función principal que ejecuta todo el proceso
     """
     try:
 
         ruta_input = Path(cfg['rutas']['ruta_input'])
-
+        limpiar_archivos_en_carpeta(Path(cfg['rutas']['ruta_input']))
         # Buscar archivos que empiecen con "relacion_pago_"
         archivos = list(ruta_input.glob("relacion_pago_*"))
 
@@ -463,6 +474,7 @@ def bbva_ci_dolares_cargar_gescom(cfg):
   
 
 def bot_run(cfg, mensaje):
+    logger.info("Entrando a bot_run")
     try:
         resultado = False
         logger.info("Iniciando ejecución principal del bot BBVA DOLARES")

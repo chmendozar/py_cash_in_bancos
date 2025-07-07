@@ -3,6 +3,9 @@ import json
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+import logging
+
+logger = logging.getLogger("Utils - Google Auth")
 
 class GoogleAuthenticator:
     """
@@ -44,6 +47,7 @@ class GoogleAuthenticator:
         self.credentials = None
         self.services = {}
         self.service_account_info = None
+        logger.debug(f"Inicializando GoogleAuthenticator con archivo: {service_account_file} y usuario a impersonar: {impersonate_user}")
     
     def get_combined_scopes(self, services=None):
         """
@@ -64,6 +68,7 @@ class GoogleAuthenticator:
                 combined_scopes.extend(self.SCOPES[service])
         
         # Remover duplicados manteniendo el orden
+        logger.debug(f"Scopes combinados para servicios {services}: {combined_scopes}")
         return list(dict.fromkeys(combined_scopes))
     
     def load_service_account_info(self):
@@ -73,8 +78,10 @@ class GoogleAuthenticator:
         try:
             with open(self.service_account_file, 'r') as f:
                 self.service_account_info = json.load(f)
+            logger.info(f"Información de Service Account cargada correctamente desde {self.service_account_file}")
             return True
         except Exception as e:
+            logger.error(f"Error al cargar información de Service Account: {e}")
             print(f"Error al cargar información de Service Account: {e}")
             return False
     
@@ -94,27 +101,33 @@ class GoogleAuthenticator:
         scopes = self.get_combined_scopes(services)
         
         if not os.path.exists(self.service_account_file):
+            logger.critical(f"Archivo de Service Account no encontrado: {self.service_account_file}")
             raise FileNotFoundError(f"Archivo de Service Account no encontrado: {self.service_account_file}")
         
         try:
             # Cargar información del Service Account
             if not self.load_service_account_info():
+                logger.error("No se pudo cargar información del Service Account")
                 raise ValueError("No se pudo cargar información del Service Account")
             
             # Cargar credenciales de Service Account
             self.credentials = service_account.Credentials.from_service_account_file(
                 self.service_account_file, scopes=scopes)
+            logger.info(f"Credenciales de Service Account cargadas para scopes: {scopes}")
             
             # Si se especifica un usuario para impersonar (Google Workspace)
             if self.impersonate_user:
                 self.credentials = self.credentials.with_subject(self.impersonate_user)
+                logger.info(f"Impersonando usuario: {self.impersonate_user}")
                 print(f"Impersonando usuario: {self.impersonate_user}")
             
+            logger.info("Autenticación con Service Account exitosa")
             print("Autenticación con Service Account exitosa")
             self.show_auth_info()
             return self.credentials
         
         except Exception as e:
+            logger.exception(f"Error al autenticar con Service Account: {e}")
             print(f"Error al autenticar con Service Account: {e}")
             raise
     
@@ -123,8 +136,10 @@ class GoogleAuthenticator:
         Muestra información detallada de la autenticación
         """
         if not self.service_account_info:
+            logger.warning("No hay información de Service Account para mostrar")
             return
         
+        logger.info("Mostrando información de Service Account")
         print("\nInformación de Service Account:")
         print(f"   Email: {self.service_account_info.get('client_email', 'N/A')}")
         print(f"   Proyecto: {self.service_account_info.get('project_id', 'N/A')}")
@@ -150,6 +165,7 @@ class GoogleAuthenticator:
             googleapiclient.discovery.Resource: Servicio de Google API
         """
         if not self.credentials:
+            logger.error("No hay credenciales. Ejecute authenticate() primero.")
             raise ValueError("No hay credenciales. Ejecute authenticate() primero.")
         
         service_key = f"{service_name}_{version}"
@@ -168,8 +184,10 @@ class GoogleAuthenticator:
                 
                 self.services[service_key] = build(
                     service_name, api_version, credentials=self.credentials)
+                logger.info(f"Servicio {service_name} v{api_version} inicializado")
                 print(f"Servicio {service_name} v{api_version} inicializado")
             except HttpError as error:
+                logger.error(f"Error al inicializar servicio {service_name}: {error}")
                 print(f"Error al inicializar servicio {service_name}: {error}")
                 raise
         
@@ -182,6 +200,7 @@ class GoogleAuthenticator:
         Returns:
             googleapiclient.discovery.Resource: Servicio de Gmail
         """
+        logger.debug("Obteniendo servicio de Gmail")
         return self.get_service('gmail', 'v1')
     
     def get_drive_service(self):
@@ -191,6 +210,7 @@ class GoogleAuthenticator:
         Returns:
             googleapiclient.discovery.Resource: Servicio de Drive
         """
+        logger.debug("Obteniendo servicio de Drive")
         return self.get_service('drive', 'v3')
     
     def get_sheets_service(self):
@@ -200,6 +220,7 @@ class GoogleAuthenticator:
         Returns:
             googleapiclient.discovery.Resource: Servicio de Sheets
         """
+        logger.debug("Obteniendo servicio de Sheets")
         return self.get_service('sheets', 'v4')
     
     def get_calendar_service(self):
@@ -209,4 +230,5 @@ class GoogleAuthenticator:
         Returns:
             googleapiclient.discovery.Resource: Servicio de Calendar
         """
+        logger.debug("Obteniendo servicio de Calendar")
         return self.get_service('calendar', 'v3')
