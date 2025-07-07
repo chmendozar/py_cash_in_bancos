@@ -400,7 +400,8 @@ def bbva_ci_soles_cargar_gescom(cfg):
         ruta_archivo = archivos[0]
         uploader = GoogleDriveUploader()        
         folder_id = "1VHy9G6hmGsnHtFqdbbwZ5iqi2kPTWlKy"
-        file_name = f"bbva_soles_{datetime.now().strftime('%d%m%Y%H%M%S')}.txt"
+        timestamp = datetime.now().strftime('%Y-%m-%dT%H%M%S.%f')[:-3]
+        file_name = f"bbva_soles_{timestamp}.txt"
         uploader.upload_file(ruta_archivo, file_name=file_name, folder_id=folder_id)
         logger.info(f"Archivo {file_name} subido a Google Drive.")
 
@@ -411,7 +412,7 @@ def bbva_ci_soles_cargar_gescom(cfg):
 
         payload = {
             "format": "Bbva_Recaudación",
-            "fileName": f"ultimos_movimientos_{datetime.now().strftime('%Y-%m-%dT%H%M%S.%f')[:-3]}.txt",
+            "fileName": f"ultimos_soles_movimientos_{timestamp}.txt",
             "base64File": contenido_b64
         }
 
