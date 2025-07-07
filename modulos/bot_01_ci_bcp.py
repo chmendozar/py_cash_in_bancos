@@ -560,6 +560,7 @@ def bcp_cargar_gescom(cfg):
         response = requests.post(api_url, json=payload, headers=headers)
 
         if response.status_code == 200:
+            
             logger.info("Archivo enviado exitosamente a GESCOM.")
             return True
         else:

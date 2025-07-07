@@ -405,7 +405,9 @@ def bbva_ci_soles_cargar_gescom(cfg):
         logger.info(f"Archivo {file_name} subido a Google Drive.")
 
         with open(ruta_archivo, "rb") as archivo:
-            contenido_b64 = base64.b64encode(archivo.read())
+            contenido_binario = archivo.read()
+        
+        contenido_b64 = base64.b64encode(contenido_binario).decode()
 
         payload = {
             "format": "Bbva_Recaudación",
@@ -460,8 +462,12 @@ def bot_run(cfg, mensaje):
         if resultado:
             webhook.send_notification(f"Bot BBVA SOLES: Cargar archivo a GESCOM")
             bbva_ci_soles_cargar_gescom(cfg)
-            mensaje = "Carga de archivo exitosa"
-            webhook.send_notification(f"Bot BBVA SOLES: Carga de archivo exitosa")
+            if resultado:
+                mensaje = "Carga de archivo exitosa"
+                webhook.send_notification(f"Bot BBVA SOLES: Carga de archivo exitosa")
+            else:
+                mensaje = "Carga de archivo no exitosa"
+                webhook.send_notification(f"Bot BBVA SOLES: Carga de archivo no exitosa")
             resultado = True
 
     except Exception as e:

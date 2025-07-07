@@ -447,7 +447,9 @@ def bbva_ci_dolares_cargar_gescom(cfg):
         uploader.upload_file(ruta_archivo, file_name=file_name, folder_id=folder_id)
 
         with open(ruta_archivo, "rb") as archivo:
-            contenido_b64 = base64.b64encode(archivo.read())
+            contenido_binario = archivo.read()
+        
+        contenido_b64 = base64.b64encode(contenido_binario).decode()
 
         payload = {
             "format": "Bbva_Recaudación",
@@ -503,8 +505,12 @@ def bot_run(cfg, mensaje):
         if resultado:
             webhook.send_notification(f"Bot BBVA DOLARES: Cargar archivo a GESCOM")
             bbva_ci_dolares_cargar_gescom(cfg)
-            mensaje = "Carga de archivo exitosa"
-            webhook.send_notification(f"Bot BBVA DOLARES: Carga de archivo exitosa")
+            if resultado:
+                mensaje = "Carga de archivo exitosa"
+                webhook.send_notification(f"Bot BBVA DOLARES: Carga de archivo exitosa")
+            else:
+                mensaje = "Carga de archivo no exitosa"
+                webhook.send_notification(f"Bot BBVA DOLARES: Carga de archivo no exitosa")
             resultado = True
 
     except Exception as e:
