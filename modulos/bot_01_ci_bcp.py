@@ -92,7 +92,7 @@ def retry_action(action, error_msg):
             logger.warning(f"{error_msg} (reintento {attempt+1}/{max_retries}): {str(e)}")
             time.sleep(retry_delay)
 
-def login(driver):
+def login(driver, cfg):
     logger.info("Entrando a login")
     """
     Función que realiza el proceso de login en la página del BCP
@@ -121,7 +121,7 @@ def login(driver):
             EC.presence_of_element_located((By.XPATH, "//input[contains(@name, 'ciam-input-card')]"))
         )
         campo_tarjeta.clear()
-        campo_tarjeta.send_keys("0006000003532706")
+        campo_tarjeta.send_keys(cfg['env_vars']['bcp']['tarjeta'])
         logger.info("Número de tarjeta ingresado")
         return campo_tarjeta
     
@@ -138,12 +138,11 @@ def login(driver):
 
     retry_action(click_continue, "Error al hacer clic en continuar")
     
-    digitos = ["2", "1", "0", "5", "9", "3"]
+    digitos = cfg['env_vars']['bcp']['password'].split(',')
     
     def enter_digits():
         logger.info("Ingresando clave mediante teclado virtual")
         for digito in digitos:
-            logger.info(f"Ingresando dígito: {digito}")
             elemento = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, f"//bcp-keyboard//*[text()='{digito}']"))
             )
@@ -164,7 +163,6 @@ def login(driver):
     img_element = retry_action(get_captcha_image, "Error al obtener imagen captcha")
     
     img_src = img_element.get_attribute('src')
-    logger.info(f"Fuente de la imagen captcha: {img_src}")
     
     if 'image/svg' in img_src:
         extension = '.svg'
@@ -182,7 +180,7 @@ def login(driver):
     logger.info("Imagen de captcha guardada")
 
     ruta_imagen = "./cliente/input/captcha.jpg"
-    api_key = "d1a79dd90565f566d2f6b48b4fad5260"
+    api_key = cfg['env_vars']['anticaptcha']['api_key']
     
     def solve_captcha():
         logger.info("Enviando captcha a anticaptcha")
@@ -222,7 +220,7 @@ def login(driver):
 
     retry_action(enter_captcha, "Error al ingresar captcha")
 
-    number_account = '194-2232464-0-40'
+    number_account = cfg['env_vars']['bcp_cuenta']
     def click_continue_btn():
         logger.info("Buscando botón continuar para login")
         btn_continue = WebDriverWait(driver, 10).until(
@@ -495,7 +493,7 @@ def bcp_cash_in_descarga_txt(cfg):
             for attempt in range(max_attempts):
                 try:
                     logger.info(f"Intento de login {attempt + 1}/{max_attempts}")
-                    login(driver)
+                    login(driver, cfg)
                     logger.info("Login exitoso")
                     return True
                 except Exception as e:
@@ -531,8 +529,9 @@ def bcp_cargar_gescom(cfg):
     Función principal que ejecuta todo el proceso
     """
     try:
-        uploader = GoogleDriveUploader()        
-        folder_id = "1VHy9G6hmGsnHtFqdbbwZ5iqi2kPTWlKy"
+        json_data = cfg['env_vars']['gcp']['service_account_json']
+        uploader = GoogleDriveUploader(authenticator=False, service_account_json=json_data)        
+        folder_id = cfg['env_vars']['gcp']['folder_id']
         ruta_archivo = Path(cfg['rutas']['ruta_input']) / "040_ultimos_movimientos.txt"
         ruta_archivo = Path(ruta_archivo)
         file_name = f"040_ultimos_movimientos_{datetime.now().strftime('%Y-%m-%dT%H%M%S.%f')[:-3]}.txt"
@@ -575,7 +574,7 @@ def bot_run(cfg, mensaje = "Bot 01 - BCP Cash In"):
     try:
         resultado = False
         logger.info("Iniciando ejecución principal del bot BCP")
-        bcp_cash_in_descarga_txt(cfg)
+        #bcp_cash_in_descarga_txt(cfg)
         resultado = True
         mensaje = "Descarga de archivo exitosa"
         if resultado:

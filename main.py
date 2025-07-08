@@ -70,7 +70,7 @@ def main():
         logger.info(f"Configuración cargada exitosamente. Secciones disponibles: {', '.join(cfg.keys())}")
 
         # Inicializar notificador webhook
-        webhook = WebhookNotifier(cfg['webhook']['webhook_rpa_url'])
+        webhook = WebhookNotifier(cfg['env_vars']['webhook_rpa_url'])
         webhook.send_notification("Iniciando proceso de orquestación de bots")
 
         # Ejecución de los bots

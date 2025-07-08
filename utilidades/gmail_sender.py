@@ -18,20 +18,20 @@ class GmailSender:
     Compatible con Service Accounts
     """
     
-    def __init__(self, authenticator=None, service_account_file='config/service_secret.json'):
+    def __init__(self, authenticator=None, service_account_json=None):
         """
         Inicializa el enviador de Gmail
         
         Args:
             authenticator (GoogleAuthenticator): Autenticador ya configurado (recomendado)
-            service_account_file (str): Ruta al archivo de Service Account JSON
+            service_account_json (str): String con el contenido del JSON de Service Account
         """
         if authenticator:
             self.authenticator = authenticator
             logger.info("Usando autenticador proporcionado para GmailSender")
         else:
-            self.authenticator = GoogleAuthenticator(service_account_file)
-            logger.info(f"Inicializando GoogleAuthenticator con archivo: {service_account_file}")
+            self.authenticator = GoogleAuthenticator(service_account_json)
+            logger.info("Inicializando GoogleAuthenticator con JSON proporcionado")
         
         self.service = None
         self.user_email = None
@@ -60,7 +60,7 @@ class GmailSender:
             print(f"Gmail inicializado para: {self.user_email}")
             print(f"Tipo de autenticación: {auth_info['tipo']}")
             if auth_info['sin_vencimiento']:
-                print("✅ Credenciales sin vencimiento")
+                print("Credenciales sin vencimiento")
                 logger.info("Credenciales sin vencimiento")
             
         except Exception as e:

@@ -13,19 +13,19 @@ class GoogleDriveUploader:
     Compatible con Service Accounts
     """
     
-    def __init__(self, authenticator=None, service_account_file='config/service_secret.json'):
+    def __init__(self, authenticator=None, service_account_json=None):
         """
         Inicializa el uploader de Google Drive
         
         Args:
             authenticator (GoogleAuthenticator): Autenticador ya configurado (recomendado)
-            service_account_file (str): Ruta al archivo de Service Account JSON
+            service_account_json (str): String con el contenido del JSON de Service Account
         """
         logger.info("Inicializando GoogleDriveUploader")
         if authenticator:
             self.authenticator = authenticator
         else:
-            self.authenticator = GoogleAuthenticator(service_account_file)
+            self.authenticator = GoogleAuthenticator(service_account_json)
         
         self.service = None
         self.initialize()

@@ -111,12 +111,12 @@ def bbva_ci_dolares_descarga_txt(cfg):
         logger.info("Iniciando proceso completo de descarga de movimientos BBVA DOLARES")
         driver = create_stealth_webdriver(cfg)
 
-        def retry_login(max_attempts=2):
+        def retry_login(max_attempts=cfg['reintentos']['reintentos_max']):
             logger.info("Entrando a retry_login")
             for attempt in range(max_attempts):
                 try:
                     logger.info(f"Intento de login {attempt + 1}/{max_attempts}")
-                    login(driver)
+                    login(driver, cfg)
                     logger.info("Login exitoso")
                     return True
                 except Exception as e:
@@ -166,7 +166,7 @@ def bbva_ci_dolares_descarga_txt(cfg):
                 logger.warning("Error al cerrar el driver")
 
 
-def login(driver):
+def login(driver, cfg):
     logger.info("Entrando a login")
     """
     Realiza el proceso de login en BBVA Netcash. Si falla, lanza una excepción.
@@ -187,7 +187,7 @@ def login(driver):
             EC.element_to_be_clickable((By.XPATH, "//input[@name='cod_emp']"))
         )
         company_code_input.clear()
-        company_code_input.send_keys("331771")
+        company_code_input.send_keys(cfg['env_vars']['bbva']['code'])
         time.sleep(1)
 
         # Ingresar código de usuario - esperar que esté presente y sea clickeable
@@ -195,7 +195,7 @@ def login(driver):
             EC.element_to_be_clickable((By.XPATH, "//input[@name='cod_usu']"))
         )
         user_code_input.clear()
-        user_code_input.send_keys("00000093")
+        user_code_input.send_keys(cfg['env_vars']['bbva']['user'])
         time.sleep(1)
 
         # Ingresar contraseña - esperar que esté presente y sea clickeable
@@ -203,7 +203,7 @@ def login(driver):
             EC.element_to_be_clickable((By.XPATH, "//input[@name='eai_password']"))
         )
         password_input.clear()
-        password_input.send_keys("EEDEtpp2024")
+        password_input.send_keys(cfg['env_vars']['bbva']['password'])
         time.sleep(3)
 
         # Click en Ingresar - esperar que el botón esté clickeable
@@ -442,8 +442,8 @@ def bbva_ci_dolares_cargar_gescom(cfg):
         # Tomar el primer archivo encontrado
         ruta_archivo = archivos[0]
         timestamp = datetime.now().strftime('%Y-%m-%dT%H%M%S.%f')[:-3]
-        uploader = GoogleDriveUploader()        
-        folder_id = "1VHy9G6hmGsnHtFqdbbwZ5iqi2kPTWlKy"
+        uploader = GoogleDriveUploader(authenticator=False, service_account_json=cfg['env_vars']['gcp']['service_account_json'])        
+        folder_id = cfg['env_vars']['gcp']['folder_id']
         file_name = f"bbva_dolares_{timestamp}.txt"
         uploader.upload_file(ruta_archivo, file_name=file_name, folder_id=folder_id)
 
@@ -481,8 +481,8 @@ def bot_run(cfg, mensaje):
         resultado = False
         logger.info("Iniciando ejecución principal del bot BBVA DOLARES")
         limpiar_archivos_en_carpeta(Path(cfg['rutas']['ruta_input']))
-        webhook = WebhookNotifier(cfg['webhook']['webhook_rpa_url'])        
-        max_attempts = 3
+        webhook = WebhookNotifier(cfg['env_vars']['webhook_rpa_url'])        
+        max_attempts = cfg['reintentos']['reintentos_max']
         for attempt in range(max_attempts):
             try:
                 logger.info(f"Intento de descarga {attempt + 1}/{max_attempts}")

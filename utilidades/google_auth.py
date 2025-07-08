@@ -34,20 +34,20 @@ class GoogleAuthenticator:
         ]
     }
     
-    def __init__(self, service_account_file='config/service_account.json', impersonate_user=None):
+    def __init__(self, service_account_json=None, impersonate_user=None):
         """
         Inicializa el autenticador
         
         Args:
-            service_account_file (str): Ruta al archivo de Service Account JSON
+            service_account_json (str): String con el contenido del JSON de Service Account
             impersonate_user (str): Email del usuario a impersonar (opcional, para Google Workspace)
         """
-        self.service_account_file = service_account_file
+        self.service_account_json = service_account_json
         self.impersonate_user = impersonate_user
         self.credentials = None
         self.services = {}
         self.service_account_info = None
-        logger.debug(f"Inicializando GoogleAuthenticator con archivo: {service_account_file} y usuario a impersonar: {impersonate_user}")
+        logger.debug(f"Inicializando GoogleAuthenticator con JSON de Service Account y usuario a impersonar: {impersonate_user}")
     
     def get_combined_scopes(self, services=None):
         """
@@ -76,9 +76,9 @@ class GoogleAuthenticator:
         Carga información del archivo de Service Account
         """
         try:
-            with open(self.service_account_file, 'r') as f:
-                self.service_account_info = json.load(f)
-            logger.info(f"Información de Service Account cargada correctamente desde {self.service_account_file}")
+            self.service_account_json = self.service_account_json.replace('\\"', '"')
+            self.service_account_info = json.loads(self.service_account_json)
+            logger.info("Información de Service Account cargada correctamente")
             return True
         except Exception as e:
             logger.error(f"Error al cargar información de Service Account: {e}")
@@ -100,10 +100,6 @@ class GoogleAuthenticator:
         
         scopes = self.get_combined_scopes(services)
         
-        if not os.path.exists(self.service_account_file):
-            logger.critical(f"Archivo de Service Account no encontrado: {self.service_account_file}")
-            raise FileNotFoundError(f"Archivo de Service Account no encontrado: {self.service_account_file}")
-        
         try:
             # Cargar información del Service Account
             if not self.load_service_account_info():
@@ -111,8 +107,8 @@ class GoogleAuthenticator:
                 raise ValueError("No se pudo cargar información del Service Account")
             
             # Cargar credenciales de Service Account
-            self.credentials = service_account.Credentials.from_service_account_file(
-                self.service_account_file, scopes=scopes)
+            self.credentials = service_account.Credentials.from_service_account_info(
+                self.service_account_info, scopes=scopes)
             logger.info(f"Credenciales de Service Account cargadas para scopes: {scopes}")
             
             # Si se especifica un usuario para impersonar (Google Workspace)
@@ -123,7 +119,6 @@ class GoogleAuthenticator:
             
             logger.info("Autenticación con Service Account exitosa")
             print("Autenticación con Service Account exitosa")
-            self.show_auth_info()
             return self.credentials
         
         except Exception as e:
@@ -131,27 +126,7 @@ class GoogleAuthenticator:
             print(f"Error al autenticar con Service Account: {e}")
             raise
     
-    def show_auth_info(self):
-        """
-        Muestra información detallada de la autenticación
-        """
-        if not self.service_account_info:
-            logger.warning("No hay información de Service Account para mostrar")
-            return
-        
-        logger.info("Mostrando información de Service Account")
-        print("\nInformación de Service Account:")
-        print(f"   Email: {self.service_account_info.get('client_email', 'N/A')}")
-        print(f"   Proyecto: {self.service_account_info.get('project_id', 'N/A')}")
-        print(f"   Client ID: {self.service_account_info.get('client_id', 'N/A')}")
-        print(f"   Tipo: {self.service_account_info.get('type', 'N/A')}")
-        
-        if self.impersonate_user:
-            print(f"   Impersonando: {self.impersonate_user}")
-        
-        print("   Sin vencimiento de credenciales")
-        print("   Ideal para automatizaciones")
-        print()
+
     
     def get_service(self, service_name, version='v1'):
         """
