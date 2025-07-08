@@ -111,7 +111,7 @@ def bbva_ci_dolares_descarga_txt(cfg):
         logger.info("Iniciando proceso completo de descarga de movimientos BBVA DOLARES")
         driver = create_stealth_webdriver(cfg)
 
-        def retry_login(max_attempts=cfg['reintentos']['reintentos_max']):
+        def retry_login(max_attempts=int(cfg['reintentos']['reintentos_max'])):
             logger.info("Entrando a retry_login")
             for attempt in range(max_attempts):
                 try:
@@ -482,7 +482,7 @@ def bot_run(cfg, mensaje):
         logger.info("Iniciando ejecución principal del bot BBVA DOLARES")
         limpiar_archivos_en_carpeta(Path(cfg['rutas']['ruta_input']))
         webhook = WebhookNotifier(cfg['env_vars']['webhook_rpa_url'])        
-        max_attempts = cfg['reintentos']['reintentos_max']
+        max_attempts = int(cfg['reintentos']['reintentos_max'])
         for attempt in range(max_attempts):
             try:
                 logger.info(f"Intento de descarga {attempt + 1}/{max_attempts}")

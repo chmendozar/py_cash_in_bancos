@@ -48,10 +48,8 @@ def bot_run():
             ruta_input.mkdir(parents=True)
         else:
             # Eliminar todas las subcarpetas dentro de ruta_input
-            pass
-            #limpiar_archivos_en_carpeta(ruta_input)
+            limpiar_archivos_en_carpeta(ruta_input)
 
-            
         # Se crea la carpeta de output si no existe
         if not Path(cfg["rutas"]["ruta_output"]).exists():
             Path(cfg["rutas"]["ruta_output"]).mkdir(parents=True)

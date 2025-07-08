@@ -107,7 +107,7 @@ def bbva_ci_soles_descarga_txt(cfg):
         logger.info("Iniciando proceso completo de descarga de movimientos BBVA SOLES")
         driver = create_stealth_webdriver(cfg)
 
-        def retry_login(max_attempts=cfg['reintentos']['reintentos_max']):
+        def retry_login(max_attempts=int(cfg['reintentos']['reintentos_max'])):
             for attempt in range(max_attempts):
                 try:
                     logger.info(f"Intento de login {attempt + 1}/{max_attempts}")
@@ -128,7 +128,7 @@ def bbva_ci_soles_descarga_txt(cfg):
         retry_login()
         
         # Reintentar desde selección de cobros si hay problemas
-        max_flow_attempts = cfg['reintentos']['reintentos_max']
+        max_flow_attempts = int(cfg['reintentos']['reintentos_max'])
         for flow_attempt in range(max_flow_attempts):
             try:
                 logger.info(f"Intento de flujo desde cobros {flow_attempt + 1}/{max_flow_attempts}")

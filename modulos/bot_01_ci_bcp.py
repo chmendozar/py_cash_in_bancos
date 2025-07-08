@@ -574,7 +574,7 @@ def bot_run(cfg, mensaje = "Bot 01 - BCP Cash In"):
     try:
         resultado = False
         logger.info("Iniciando ejecución principal del bot BCP")
-        #bcp_cash_in_descarga_txt(cfg)
+        bcp_cash_in_descarga_txt(cfg)
         resultado = True
         mensaje = "Descarga de archivo exitosa"
         if resultado:
