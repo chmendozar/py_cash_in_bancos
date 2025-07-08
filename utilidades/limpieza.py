@@ -1,6 +1,8 @@
 import psutil
 import logging
 import os
+import platform
+import subprocess
 
 # Configuración del logger
 logger = logging.getLogger("Utils - Limpieza Ambiente")
@@ -8,13 +10,16 @@ logger = logging.getLogger("Utils - Limpieza Ambiente")
 def cerrarProcesos(lista_procesos):
     """
     Cierra los procesos según los nombres proporcionados en la lista, forzando el cierre si es necesario.
+    Utiliza comandos del sistema operativo para forzar el cierre.
 
     :param lista_procesos: Lista de nombres de procesos a cerrar (ej. ["chrome.exe", "excel.exe"]).
     """
+   
     try:
         logger.info("Inicio del proceso ...")
 
         procesos_cerrados = []
+        sistema_operativo = platform.system()
 
         # Recorre todos los procesos en ejecucion
         for proceso in psutil.process_iter(attrs=['pid', 'name']):
@@ -23,26 +28,66 @@ def cerrarProcesos(lista_procesos):
                 # Si el nombre del proceso esta en la lista se cierra
                 if nombre_proceso.lower() in [nombre.lower() for nombre in lista_procesos]:
                     pid = proceso.info['pid']
+                    
+                    # Intentar cerrar con psutil primero
                     proceso_terminado = psutil.Process(pid)
                     try:
                         proceso_terminado.terminate()
                         try:
-                            proceso_terminado.wait(timeout=5)
+                            proceso_terminado.wait(timeout=3)
                             logger.info(f"Proceso cerrado (terminate): {nombre_proceso} (PID: {pid})")
+                            procesos_cerrados.append(nombre_proceso)
+                            continue
                         except psutil.TimeoutExpired:
-                            logger.warning(f"El proceso {nombre_proceso} (PID: {pid}) no respondió a terminate(). Se intentará kill().")
-                            proceso_terminado.kill()
-                            proceso_terminado.wait(timeout=5)
-                            logger.info(f"Proceso cerrado forzosamente (kill): {nombre_proceso} (PID: {pid})")
+                            logger.warning(f"El proceso {nombre_proceso} (PID: {pid}) no respondió a terminate(). Se intentará con comando del SO.")
                     except Exception as e:
-                        logger.warning(f"No se pudo cerrar el proceso {nombre_proceso} (PID: {pid}): {e}")
-                    procesos_cerrados.append(nombre_proceso)
+                        logger.warning(f"No se pudo cerrar el proceso {nombre_proceso} (PID: {pid}) con psutil: {e}")
+
+                    # Forzar cierre con comandos del sistema operativo
+                    try:
+                        if sistema_operativo == "Windows":
+                            # Comando para Windows
+                            comando = f'taskkill /F /PID {pid}'
+                            resultado = subprocess.run(comando, shell=True, capture_output=True, text=True, timeout=10)
+                            if resultado.returncode == 0:
+                                logger.info(f"Proceso cerrado forzosamente (taskkill): {nombre_proceso} (PID: {pid})")
+                                procesos_cerrados.append(nombre_proceso)
+                            else:
+                                logger.warning(f"No se pudo cerrar {nombre_proceso} (PID: {pid}) con taskkill: {resultado.stderr}")
+                        
+                        elif sistema_operativo == "Darwin":  # macOS
+                            # Comando para macOS
+                            comando = f'kill -9 {pid}'
+                            resultado = subprocess.run(comando, shell=True, capture_output=True, text=True, timeout=10)
+                            if resultado.returncode == 0:
+                                logger.info(f"Proceso cerrado forzosamente (kill -9): {nombre_proceso} (PID: {pid})")
+                                procesos_cerrados.append(nombre_proceso)
+                            else:
+                                logger.warning(f"No se pudo cerrar {nombre_proceso} (PID: {pid}) con kill -9: {resultado.stderr}")
+                        
+                        elif sistema_operativo == "Linux":
+                            # Comando para Linux
+                            comando = f'kill -9 {pid}'
+                            resultado = subprocess.run(comando, shell=True, capture_output=True, text=True, timeout=10)
+                            if resultado.returncode == 0:
+                                logger.info(f"Proceso cerrado forzosamente (kill -9): {nombre_proceso} (PID: {pid})")
+                                procesos_cerrados.append(nombre_proceso)
+                            else:
+                                logger.warning(f"No se pudo cerrar {nombre_proceso} (PID: {pid}) con kill -9: {resultado.stderr}")
+                        
+                        else:
+                            logger.warning(f"Sistema operativo no reconocido: {sistema_operativo}")
+                            
+                    except subprocess.TimeoutExpired:
+                        logger.error(f"Timeout al intentar cerrar {nombre_proceso} (PID: {pid}) con comando del SO")
+                    except Exception as e:
+                        logger.error(f"Error al ejecutar comando del SO para {nombre_proceso} (PID: {pid}): {e}")
 
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-                logger.warning(f"No se pudo cerrar el proceso {nombre_proceso}: {e}")
+                logger.warning(f"No se pudo acceder al proceso: {e}")
 
         if not procesos_cerrados:
-            logger.info("No se cerro ningun proceso.")
+            logger.info("No se cerró ningún proceso.")
         else:
             logger.info(f"Procesos cerrados: {', '.join(procesos_cerrados)}")
 

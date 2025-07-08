@@ -35,7 +35,7 @@ def bot_run():
             'anticaptcha': {
                 'api_key': os.getenv('ANTICAPTCHA_API_KEY')
             },
-            'bcp_cuenta': '194-2232464-0-40',
+            'bcp_cuenta': os.getenv('BCP_CUENTA'),
             'webhook_rpa_url': os.getenv('WEBHOOK_RPA_URL')
         }
         # Se crea la carpeta de logs si no existe
