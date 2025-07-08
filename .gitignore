@@ -78,3 +78,5 @@ desktop.ini
 /cliente/
 /cliente/input/
 /cliente/output/
+# Environment variables
+.env
