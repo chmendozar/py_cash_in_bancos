@@ -118,7 +118,8 @@ class GoogleDriveUploader:
             file = self.service.files().create(
                 body=file_metadata,
                 media_body=media,
-                fields='id,name,size,mimeType,createdTime,webViewLink'
+                fields='id,name,size,mimeType,createdTime,webViewLink',
+                supportsAllDrives=True
             ).execute()
             
             logger.info(f"Archivo subido exitosamente: {file.get('name')} (ID: {file.get('id')})")
